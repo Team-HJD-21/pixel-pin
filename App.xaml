@@ -1,0 +1,25 @@
+<Application x:Class="PixelPin.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" StartupUri="MainWindow.xaml">
+  <Application.Resources>
+    <SolidColorBrush x:Key="Ink" Color="#202730"/>
+    <SolidColorBrush x:Key="Muted" Color="#7B8491"/>
+    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource Ink}"/></Style>
+    <Style TargetType="Button">
+      <Setter Property="Foreground" Value="{StaticResource Ink}"/><Setter Property="Background" Value="#FFFFFF"/>
+      <Setter Property="BorderBrush" Value="#E1E5EB"/><Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="14,10"/><Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+        <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10" Padding="{TemplateBinding Padding}">
+          <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}">
+            <ContentPresenter.Resources>
+              <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/></Style>
+            </ContentPresenter.Resources>
+          </ContentPresenter>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#8996AA"/></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#537BEC"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+  </Application.Resources>
+</Application>
