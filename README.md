@@ -118,3 +118,4 @@ node scripts/preview-site.mjs
 ```
 
 <div align="center"><br /><a href="https://teamhjd.com/"><strong>Made by TeamHJD</strong></a><br /><sub>© 2026 TeamHJD. All rights reserved.</sub></div>
+<br/>
