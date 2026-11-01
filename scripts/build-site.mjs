@@ -1,9 +1,14 @@
 import { readFile, writeFile, mkdir, cp } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const out=path.join(root,'.pages');
+const cssSource=await readFile(path.join(root,'site/site.css'));
+const jsSource=await readFile(path.join(root,'site/site.js'));
+const cssName=`site.${createHash('sha256').update(cssSource).digest('hex').slice(0,12)}.css`;
+const jsName=`site.${createHash('sha256').update(jsSource).digest('hex').slice(0,12)}.js`;
 const base=(process.env.BASE_PATH||'').replace(/\/$/,'');
 if(base && !/^\/[\w/-]+$/.test(base))throw new Error('Invalid base path');
 const siteUrl=(process.env.SITE_URL||'https://pixelpin.teamhjd.com').replace(/^http:/,'https:').replace(/\/$/,'');
@@ -44,13 +49,15 @@ const latest=releases[0];const zip=latest.assets.find(a=>/win-x64\.zip$/i.test(a
 const anchor=release=>'release-'+String(release.tag_name).replace(/[^a-zA-Z0-9_-]/g,'-');
 const date=value=>new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Asia/Seoul'}).format(new Date(value));
 const versionLinks=releases.map(r=>`<a href="#${anchor(r)}">${escape(r.tag_name)}</a>`).join('\n');
-const releaseCards=releases.map((r,i)=>`<article class="release-article" id="${anchor(r)}"><div class="release-meta"><span class="version-tag">${escape(r.tag_name)}</span><time datetime="${escape(r.published_at)}">${date(r.published_at)}</time>${i===0?'<span class="latest-badge">LATEST</span>':''}</div><h2>${escape(r.name||r.tag_name)}</h2><div class="release-body">${markdown(r.body||'새 버전이 출시되었습니다.')}</div><div class="release-links"><a href="${safeUrl(r.html_url)}">GitHub에서 보기 ↗</a>${r.assets.find(a=>/win-x64\.zip$/i.test(a.name))?`<a href="${safeUrl(r.assets.find(a=>/win-x64\.zip$/i.test(a.name)).browser_download_url)}">이 버전 다운로드 ↓</a>`:''}</div></article>`).join('\n');
+const releaseCards=releases.map((r,i)=>`<article class="release-article" id="${anchor(r)}"><div class="release-meta"><span class="version-tag">${escape(r.tag_name)}</span><time datetime="${escape(r.published_at)}">${date(r.published_at)}</time>${i===0?'<span class="latest-badge">LATEST</span>':''}</div><h2>${escape(r.name||r.tag_name)}</h2><div class="release-body">${markdown(r.body||'새 버전이 출시되었습니다.')}</div><div class="release-links"><a href="${safeUrl(r.html_url)}">GitHub에서 보기</a>${r.assets.find(a=>/win-x64\.zip$/i.test(a.name))?`<a href="${safeUrl(r.assets.find(a=>/win-x64\.zip$/i.test(a.name)).browser_download_url)}">이 버전 다운로드</a>`:''}</div></article>`).join('\n');
 const data={base,siteUrl:escape(siteUrl),home:base+'/',changelog:base+'/changelog/',download:safeUrl(zip.browser_download_url),version:escape(latest.tag_name),releaseName:escape(latest.name||latest.tag_name),size:(zip.size/1048576).toFixed(1),publishedIso:escape(latest.published_at),date:date(latest.published_at),releaseAnchor:anchor(latest),versionLinks,releaseCards,year:'2026'};
 function render(template){return template.replace(/\{\{(\w+)\}\}/g,(_,key)=>{if(!(key in data))throw new Error('Unknown template key '+key);return data[key];});}
+data.styleUrl=base+'/assets/'+cssName;data.scriptUrl=base+'/assets/'+jsName;
 await mkdir(path.join(out,'assets'),{recursive:true});await mkdir(path.join(out,'changelog'),{recursive:true});
 await writeFile(path.join(out,'index.html'),render(await readFile(path.join(root,'site/index.html'),'utf8')));
 await writeFile(path.join(out,'changelog/index.html'),render(await readFile(path.join(root,'site/changelog.html'),'utf8')));
 for(const name of ['site.css','site.js'])await cp(path.join(root,'site',name),path.join(out,'assets',name));
+await writeFile(path.join(out,'assets',cssName),cssSource);await writeFile(path.join(out,'assets',jsName),jsSource);
 for(const name of ['app-icon.png','app.ico','preview.png','preview-dark-zh.png','settings.png'])await cp(path.join(root,'assets',name),path.join(out,'assets',name));
 await writeFile(path.join(out,'.nojekyll'),'');
 await writeFile(path.join(out,'robots.txt'),`User-agent: *\nAllow: /\nSitemap: ${siteUrl}/sitemap.xml\n`);
