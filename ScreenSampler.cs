@@ -4,6 +4,8 @@ namespace PixelPin;
 // Coordinates and captured bytes are physical desktop pixels, including negative monitor coordinates.
 internal sealed class ScreenSampler : IDisposable
 {
+    private readonly DirectXSampler directX = new();
+    internal string CaptureMode { get; private set; } = "Compatibility";
     internal const int Size = 17;
     private readonly IntPtr desktop, memory, bitmap, previous;
     private readonly byte[] pixels = new byte[Size * Size * 4];
@@ -22,6 +24,9 @@ internal sealed class ScreenSampler : IDisposable
     }
     internal byte[]? Capture(int x, int y)
     {
+        var directPixels = directX.Capture(x, y);
+        if (directPixels is not null) { CaptureMode = directX.IsHdr ? "Hdr" : "DirectX"; return directPixels; }
+        CaptureMode = "Compatibility";
         // Stretch edge pixels into the magnifier rather than reading beyond the virtual screen.
         int left = Native.GetSystemMetrics(76), top = Native.GetSystemMetrics(77);
         int right = left + Native.GetSystemMetrics(78) - 1;
@@ -50,6 +55,7 @@ internal sealed class ScreenSampler : IDisposable
     {
         if (disposed) return;
         disposed = true;
+        directX.Dispose();
         if (previous != IntPtr.Zero && memory != IntPtr.Zero) Native.SelectObject(memory, previous);
         if (bitmap != IntPtr.Zero) Native.DeleteObject(bitmap);
         if (memory != IntPtr.Zero) Native.DeleteDC(memory);
@@ -59,6 +65,8 @@ internal sealed class ScreenSampler : IDisposable
 
 internal static class Native
 {
+    [DllImport("user32.dll")] internal static extern IntPtr WindowFromPoint(Point point);
+    [DllImport("user32.dll")] internal static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
     internal delegate IntPtr MouseHookProc(int code, IntPtr message, IntPtr data);
     [DllImport("user32.dll", SetLastError = true)] internal static extern IntPtr SetWindowsHookEx(int id, MouseHookProc callback, IntPtr module, uint thread);
     [DllImport("user32.dll")] internal static extern bool UnhookWindowsHookEx(IntPtr hook);

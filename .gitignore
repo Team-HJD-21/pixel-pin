@@ -4,3 +4,4 @@ obj/
 *.user
 dist/
 artifacts/
+.pages/

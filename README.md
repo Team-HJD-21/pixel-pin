@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="assets/app-icon.png" width="100" height="100" alt="Pixel Pin icon" />
+**한국어** · [English](docs/README.en.md) · [简体中文](docs/README.zh-CN.md)
+
+<br />
+<img src="assets/app-icon.png" width="96" height="96" alt="Pixel Pin" />
 
 # Pixel Pin
 
@@ -8,16 +11,14 @@
 
 Windows를 위한 작고 깔끔한 픽셀 컬러 피커. Made by [TeamHJD](https://teamhjd.com/).
 
-[![Release](https://img.shields.io/github/v/release/Team-HJD-21/Pixel-Pin?style=flat-square&color=547CF0)](https://github.com/Team-HJD-21/Pixel-Pin/releases/latest)
-![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-202B40?style=flat-square)
-![Architecture](https://img.shields.io/badge/x64-Desktop-202B40?style=flat-square)
-![Built with](https://img.shields.io/badge/.NET-10%20%7C%20WPF-7856C8?style=flat-square)
+[![Release](https://img.shields.io/github/v/release/Team-HJD-21/pixel-pin?style=flat-square&color=547CF0)](https://github.com/Team-HJD-21/pixel-pin/releases/latest)
+![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-202B40?style=flat-square)
+![.NET](https://img.shields.io/badge/.NET-10%20%7C%20WPF-7856C8?style=flat-square)
 
-[**다운로드**](https://github.com/Team-HJD-21/Pixel-Pin/releases/latest) · [사용 방법](#사용-방법) · [개발 및 빌드](#개발-및-빌드) · [문제 제보](https://github.com/Team-HJD-21/Pixel-Pin/issues)
+[**소개 사이트**](https://pixelpin.teamhjd.com/) · [**다운로드**](https://github.com/Team-HJD-21/pixel-pin/releases/latest) · [패치노트](https://pixelpin.teamhjd.com/changelog/) · [문제 제보](https://github.com/Team-HJD-21/pixel-pin/issues)
 
 <br />
-
-<img src="assets/preview.png" width="440" alt="Pixel Pin: 픽셀 확대경, HEX 복사 버튼, RGB 값, 최근 색상 기록" />
+<img src="assets/preview.png" width="380" alt="Pixel Pin 라이트 모드의 샘플 화면" />
 
 <sub>화면 구성 예시 · 샘플 색상 #547CF0</sub>
 
@@ -27,69 +28,74 @@ Windows를 위한 작고 깔끔한 픽셀 컬러 피커. Made by [TeamHJD](https
 
 | 기능 | 설명 |
 | :--- | :--- |
-| **실시간 픽셀 측정** | 커서 아래의 색을 HEX와 RGB로 표시합니다. |
+| **실시간 픽셀 측정** | 커서 아래의 물리적 픽셀 1개를 읽습니다. |
 | **클릭으로 고정 / 재개** | 한 번 클릭해서 고정하고, 다시 클릭해서 측정을 이어갑니다. |
-| **픽셀 확대경** | 주변 17 × 17 픽셀을 확대하고 측정하는 픽셀을 중앙에 표시합니다. |
-| **색상이 보이는 복사 버튼** | 배경은 측정한 색으로, 글자는 대비가 높은 검정 또는 흰색으로 바뀝니다. |
-| **최근 색상 8개** | 복사한 색을 저장하고, 클릭해서 다시 복사합니다. |
-| **항상 위에** | 다른 창을 보면서도 측정값을 확인할 수 있습니다. |
+| **픽셀 확대경** | 주변 17 × 17 픽셀과 중앙 측정 지점을 표시합니다. |
+| **5가지 색상 포맷** | HEX, RGB, HSL, HSV, CMYK 참고값으로 표시하고 복사합니다. |
+| **라이트 / 다크 / 기기 설정** | 시스템의 화면 모드 변경도 따라갑니다. |
+| **3개 언어** | 한국어, English, 简体中文. 중국어 버튼과 안내도 한자로 표시합니다. |
+| **작은 편의 기능** | 항상 위에 표시, 최근 색상 8개, 색에 맞춰 바뀌는 복사 버튼 글자. |
 
-계정도, 설치 과정도 없습니다. 앱 자체는 네트워크에 연결하지 않습니다. 하단 제작자 링크를 누를 때만 기본 브라우저에서 TeamHJD 사이트가 열립니다.
+계정이나 설치 과정 없이 실행합니다. 앱 자체는 화면 이미지나 색상 기록을 서버로 전송하지 않습니다. 제작자 링크를 누르면 기본 브라우저에서 TeamHJD 사이트가 열립니다.
 
 ## 다운로드 및 실행
 
-1. [최신 릴리스](https://github.com/Team-HJD-21/Pixel-Pin/releases/latest)에서 **`Pixel-Pin-v1.0.0-win-x64.zip`**을 받습니다.
+1. [최신 릴리스](https://github.com/Team-HJD-21/pixel-pin/releases/latest)에서 **Windows x64 ZIP**을 받습니다.
 2. 원하는 폴더에 압축을 풉니다.
 3. **`PixelPin.exe`**를 실행합니다.
 
-**지원 환경:** Windows 10 / 11, x64. 공식 배포본에는 .NET 런타임이 포함되어 있어 별도 설치가 필요하지 않습니다.
+**Windows 10 / 11, x64**를 대상으로 합니다. 공식 배포본에는 .NET 런타임이 포함되어 있어 별도 설치가 필요하지 않습니다.
 
-## 사용 방법
+## 고르고 → 고정하고 → 복사하기
 
-**① 고르기** → 앱 바깥으로 커서를 옮겨 원하는 픽셀을 찾습니다.
-
-**② 고정하기** → 화면을 왼쪽 클릭합니다. 색상과 확대경이 고정됩니다.
-
-**③ 복사하기** → `HEX 복사`를 누릅니다. `#RRGGBB` 형식으로 클립보드에 복사됩니다.
-
-**④ 다시 고르기** → 화면을 다시 클릭하거나 `실시간 측정 재개`를 누릅니다.
-
-앱 안의 복사 버튼이나 최근 색상을 누르면 고정 / 재개가 전환되지 않습니다. 실시간 측정 중 앱 안으로 커서를 옮기면 마지막 측정값이 유지됩니다.
+앱 바깥으로 커서를 옮겨 원하는 픽셀을 찾고, 화면을 왼쪽 클릭해 고정합니다. 복사 버튼을 누르면 설정에서 선택한 포맷으로 복사됩니다. 화면을 다시 클릭하거나 측정 재개 버튼을 누르면 이어서 색을 고를 수 있습니다.
 
 | 단축키 | 동작 |
 | :--- | :--- |
-| `Ctrl` + `Shift` + `C` | 현재 색상의 HEX 코드 복사 |
-| `Ctrl` + `Shift` + `Space` | 색상 고정 / 실시간 측정 재개 |
+| `Ctrl` + `Shift` + `C` | 현재 색상 복사 |
+| `Ctrl` + `Shift` + `Space` | 색상 고정 / 측정 재개 |
 
-단축키는 다른 앱을 사용하는 동안에도 동작합니다. 다른 프로그램과 충돌하면 Pixel Pin 안의 버튼을 사용할 수 있습니다.
+설정창과 앱 내부 버튼을 누를 때는 측정 상태가 전환되지 않습니다. 최근 색상도 현재 선택한 포맷으로 다시 복사합니다. 단축키가 다른 앱과 충돌하면 앱 안의 버튼을 사용하세요.
 
-> 화면 클릭은 원래 프로그램에도 전달됩니다. 버튼이나 링크를 누르지 않고 색만 고정하려면 `Ctrl + Shift + Space`를 사용하세요.
+> 화면 클릭은 원래 프로그램에도 전달됩니다. 버튼이나 링크를 누르지 않고 색만 고정하려면 단축키를 사용하세요.
 
-## 색상과 기록
+## 나에게 맞게 설정하기
 
-- **측정 기준:** 커서가 있는 물리적 픽셀 1개. 값은 Windows 화면 캡처에서 읽은 8비트 RGB입니다.
-- **모니터:** 여러 모니터, 음수 화면 좌표, 모니터별 배율을 처리하도록 구성되어 있습니다.
-- **색상 관리:** 원본 파일의 색상 프로필을 분석하지 않습니다. HDR이나 화면 색상 처리에 따라 원본 파일의 RGB 값과 다를 수 있습니다.
-- **캡처 제한:** 보안 화면 또는 캡처가 차단된 콘텐츠는 측정할 수 없습니다.
-- **저장 위치:** 최근 복사한 색상은 `%LOCALAPPDATA%\PixelPin\history.json`에 저장됩니다. 이전 Digital Color Meter 버전의 기록은 첫 실행 때 이어받습니다.
+오른쪽 위의 **설정 아이콘**을 누르세요. 변경한 내용은 바로 적용되고 다음 실행에도 유지됩니다.
+
+- **화면 모드:** 기기 설정 따르기 / 라이트 모드 / 다크 모드
+- **언어:** 한국어 / English / 简体中文
+- **포맷:** HEX / RGB / HSL / HSV / CMYK
+
+<div align="center"><img src="assets/settings.png" width="280" alt="한국어 설정창" /> <img src="assets/settings-dark-zh.png" width="280" alt="중국어 다크 모드 설정창" /></div>
+
+| 포맷 | 예시 | 용도 / 한계 |
+| :--- | :--- | :--- |
+| HEX | `#FF8000` | 8비트 sRGB의 16진수 표기 |
+| RGB | `rgb(255, 128, 0)` | RGB 채널 값 |
+| HSL | `hsl(30.1, 100%, 50%)` | 색상 / 채도 / 명도 |
+| HSV | `hsv(30.1, 100%, 100%)` | 색상 / 채도 / 밝기. 일반 CSS 문법이 아닙니다. |
+| CMYK | `cmyk(0%, 49.8%, 100%, 0%)` | RGB에서 환산한 참고값. ICC 인쇄 프로파일이 적용되지 않습니다. 일반 CSS 문법이 아닙니다. |
+
+## HDR와 측정 기준
+
+지원되는 환경에서는 DirectX 화면 복제로 원본 포맷을 유지합니다. FP16 scRGB 화면은 Windows의 SDR 흰색 밝기 기준으로 정규화한 후 sRGB로 환산하며, SDR 범위를 넘는 값은 채널 비율을 유지하며 축소합니다. 이 경로는 앱에 **`HDR/scRGB → sRGB`**로 표시됩니다.
+
+**HEX/RGB 결과로 HDR의 밝기나 넓은 색역, 모니터에서 보이는 느낌을 완전히 재현할 수는 없습니다.** ICC 인쇄 색상이나 원본 파일의 프로파일을 분석하는 도구도 아닙니다. HDR에서 보이는 색과의 일치는 디스플레이·드라이버·색상 처리에 따라 추가 확인이 필요합니다.
+
+DirectX를 사용할 수 없으면 GDI 호환 캡처로 전환하고 **호환 캡처**임을 표시합니다. 이 경우 HDR 값은 다를 수 있습니다. 보안 화면이나 캡처가 차단된 콘텐츠는 측정할 수 없습니다. 여러 모니터, 음수 좌표와 회전된 모니터를 처리하도록 구성되어 있습니다.
+
+설정과 기록은 `%LOCALAPPDATA%\PixelPin\settings.json`, `history.json`에 저장됩니다. 이전 Digital Color Meter 버전의 기록은 이어받습니다.
 
 ## 개발 및 빌드
 
-**.NET SDK 10**이 설치된 Windows에서 빌드합니다. WPF와 Windows API를 사용하며 외부 NuGet 패키지에 의존하지 않습니다.
+Windows와 **.NET SDK 10**이 필요합니다. WPF와 Windows API, [Vortice.Windows](https://github.com/amerkoleci/Vortice.Windows) DirectX 바인딩을 사용합니다.
 
 ```powershell
-git clone https://github.com/Team-HJD-21/Pixel-Pin.git
-cd Pixel-Pin
+git clone https://github.com/Team-HJD-21/pixel-pin.git
+cd pixel-pin
 dotnet run --project PixelPin.csproj
 ```
-
-로컬 실행용 빌드:
-
-```powershell
-dotnet publish PixelPin.csproj -c Release --self-contained false -o dist
-```
-
-위 빌드는 .NET Desktop Runtime 10이 필요합니다. 배포할 때 실행 파일 옆의 DLL과 JSON 파일도 함께 보관하세요.
 
 런타임을 포함한 단일 실행 파일:
 
@@ -99,18 +105,16 @@ dotnet publish PixelPin.csproj -c Release -r win-x64 --self-contained true `
   -p:EnableCompressionInSingleFile=true -p:DebugType=None -o artifacts/win-x64
 ```
 
-아이콘은 `assets/app-icon.svg`를 원본으로 관리합니다. `assets/generate-icon.ps1`로 16–256px의 여러 크기를 담은 Windows ICO를 다시 만들 수 있습니다.
+아이콘 원본은 `assets/app-icon.svg`입니다. `assets/generate-icon.ps1`로 Windows ICO를 다시 만들 수 있습니다.
 
-## 프로젝트
+## 사이트와 패치노트
 
-버그나 사용 중 불편한 점은 [Issues](https://github.com/Team-HJD-21/Pixel-Pin/issues)에 남겨주세요.
+`site/`와 `scripts/build-site.mjs`로 정적 사이트를 만듭니다. GitHub Pages가 `pixelpin.teamhjd.com`을 호스팅합니다. 릴리스를 게시·수정하면 공개 릴리스에서 패치노트와 다운로드 링크를 다시 생성합니다. 사이트 방문 시 GitHub API를 호출하지 않습니다.
 
-<div align="center">
+```powershell
+node scripts/build-site.mjs
+node scripts/check-site.mjs
+node scripts/preview-site.mjs
+```
 
-<br />
-
-**[Made by TeamHJD](https://teamhjd.com/)**
-
-<sub>© 2026 TeamHJD. All rights reserved.</sub>
-
-</div>
+<div align="center"><br /><a href="https://teamhjd.com/"><strong>Made by TeamHJD</strong></a><br /><sub>© 2026 TeamHJD. All rights reserved.</sub></div>

@@ -1,0 +1,45 @@
+name: Deploy Pixel Pin website
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'scripts/**', 'assets/**', '.github/workflows/pages.yml']
+  release:
+    types: [published, edited, deleted, unpublished]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pixel-pin-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/configure-pages@v5
+        id: pages
+      - name: Build website and release notes
+        run: node scripts/build-site.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SITE_URL: ${{ steps.pages.outputs.base_url }}
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+      - name: Verify built pages
+        run: |
+          node scripts/check-site.mjs
+          node scripts/test-site.mjs
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: .pages
+      - uses: actions/deploy-pages@v4
+        id: deploy
