@@ -12,7 +12,7 @@ A small, clean Windows color picker by [TeamHJD](https://teamhjd.com/).
 
 [Website](https://pixelpin.teamhjd.com/) · [Download](https://github.com/Team-HJD-21/pixel-pin/releases/latest) · [Release notes](https://pixelpin.teamhjd.com/changelog/) · [Issues](https://github.com/Team-HJD-21/pixel-pin/issues)
 
-<br /><img src="../assets/preview.png" width="360" alt="Pixel Pin interface with a sample color" />
+<br /><img src="https://github.com/user-attachments/assets/17312d7b-05b8-444d-929e-08334b704244" width="360" alt="Pixel Pin interface with a sample color" />
 
 <sub>Interface example with sample color #547CF0</sub>
 
