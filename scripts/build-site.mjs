@@ -1,7 +1,8 @@
-import { readFile, writeFile, mkdir, cp } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, cp, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import {languages,tr,translateMarkup} from '../site/translations.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const out=path.join(root,'.pages');
@@ -47,21 +48,43 @@ const releases=all.filter(r=>!r.draft&&!r.prerelease&&r.published_at).sort((a,b)
 if(!releases.length)throw new Error('A published stable release is required');
 const latest=releases[0];const zip=latest.assets.find(a=>/win-x64\.zip$/i.test(a.name));if(!zip)throw new Error('Missing Windows x64 release asset');
 const anchor=release=>'release-'+String(release.tag_name).replace(/[^a-zA-Z0-9_-]/g,'-');
-const date=value=>new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Asia/Seoul'}).format(new Date(value));
-const versionLinks=releases.map(r=>`<a href="#${anchor(r)}">${escape(r.tag_name)}</a>`).join('\n');
-const releaseCards=releases.map((r,i)=>`<article class="release-article" id="${anchor(r)}"><div class="release-meta"><span class="version-tag">${escape(r.tag_name)}</span><time datetime="${escape(r.published_at)}">${date(r.published_at)}</time>${i===0?'<span class="latest-badge">LATEST</span>':''}</div><h2>${escape(r.name||r.tag_name)}</h2><div class="release-body">${markdown(r.body||'새 버전이 출시되었습니다.')}</div><div class="release-links"><a href="${safeUrl(r.html_url)}">GitHub에서 보기</a>${r.assets.find(a=>/win-x64\.zip$/i.test(a.name))?`<a href="${safeUrl(r.assets.find(a=>/win-x64\.zip$/i.test(a.name)).browser_download_url)}">이 버전 다운로드</a>`:''}</div></article>`).join('\n');
-const data={base,siteUrl:escape(siteUrl),home:base+'/',changelog:base+'/changelog/',download:safeUrl(zip.browser_download_url),version:escape(latest.tag_name),releaseName:escape(latest.name||latest.tag_name),size:(zip.size/1048576).toFixed(1),publishedIso:escape(latest.published_at),date:date(latest.published_at),releaseAnchor:anchor(latest),versionLinks,releaseCards,year:'2026'};
-function render(template){return template.replace(/\{\{(\w+)\}\}/g,(_,key)=>{if(!(key in data))throw new Error('Unknown template key '+key);return data[key];});}
-data.styleUrl=base+'/assets/'+cssName;data.scriptUrl=base+'/assets/'+jsName;
-await mkdir(path.join(out,'assets'),{recursive:true});await mkdir(path.join(out,'changelog'),{recursive:true});
-await writeFile(path.join(out,'index.html'),render(await readFile(path.join(root,'site/index.html'),'utf8')));
-await writeFile(path.join(out,'changelog/index.html'),render(await readFile(path.join(root,'site/changelog.html'),'utf8')));
+const prefix=language=>language==='ko'?'':`/${language}`;
+const localizedName=(release,language)=>language==='zh-CN'&&release.tag_name==='v1.1.0'?'Pixel Pin v1.1.0 — 按你的习惯来':release.name||release.tag_name;
+function render(template,data){return template.replace(/\{\{(\w+)\}\}/g,(_,key)=>{if(!(key in data))throw new Error('Unknown template key '+key);return data[key];});}
+await mkdir(path.join(out,'assets'),{recursive:true});
+const homeTemplate=await readFile(path.join(root,'site/index.html'),'utf8');
+const notesTemplate=await readFile(path.join(root,'site/changelog.html'),'utf8');
+const sitemap=[];
+for(const language of languages){
+ const code=language.code;
+ const date=value=>new Intl.DateTimeFormat(language.locale,{year:'numeric',month:code==='ko'?'2-digit':'short',day:'numeric',timeZone:'Asia/Seoul'}).format(new Date(value));
+ const versionLinks=releases.map(r=>`<a href="#${anchor(r)}">${escape(r.tag_name)}</a>`).join('\n');
+ const releaseCards=(await Promise.all(releases.map(async(r,i)=>{
+  let body=r.body||tr('새 버전이 출시되었습니다.',code),fallback=false;
+  if(code!=='ko'){
+   try{body=await readFile(path.join(root,'site/releases',`${String(r.tag_name).replace(/[^a-zA-Z0-9_.-]/g,'_')}.${code}.md`),'utf8');}
+   catch(error){if(error.code!=='ENOENT')throw error;fallback=true;}
+  }
+  const asset=r.assets.find(a=>/win-x64\.zip$/i.test(a.name));
+  return `<article class="release-article" id="${anchor(r)}"><div class="release-meta"><span class="version-tag">${escape(r.tag_name)}</span><time datetime="${escape(r.published_at)}">${date(r.published_at)}</time>${i===0?'<span class="latest-badge">'+(code==='zh-CN'?'最新版本':'LATEST')+'</span>':''}</div><h2>${escape(localizedName(r,code))}</h2>${fallback?'<p class="fine-print">'+tr('원문 패치노트',code)+'</p>':''}<div class="release-body">${markdown(body)}</div><div class="release-links"><a href="${safeUrl(r.html_url)}">${tr('GitHub에서 보기',code)}</a>${asset?`<a href="${safeUrl(asset.browser_download_url)}">${tr('이 버전 다운로드',code)}</a>`:''}</div></article>`;
+ }))).join('\n');
+ for(const page of ['home','changelog']){
+  const suffix=page==='home'?'/':'/changelog/';
+  const canonical=siteUrl+prefix(code)+suffix;
+  const data={base,language:code,siteUrl:escape(siteUrl),canonical:escape(canonical),home:base+prefix(code)+'/',changelog:base+prefix(code)+'/changelog/',download:safeUrl(zip.browser_download_url),version:escape(latest.tag_name),releaseName:escape(localizedName(latest,code)),size:(zip.size/1048576).toFixed(1),publishedIso:escape(latest.published_at),date:date(latest.published_at),releaseAnchor:anchor(latest),versionLinks,releaseCards,year:'2026',styleUrl:base+'/assets/'+cssName,scriptUrl:base+'/assets/'+jsName,previewImage:base+`/assets/preview-${code}-light.png`,settingsImage:base+`/assets/settings-${code}-light.png`};
+  data.languageOptions=languages.map(item=>`<option value="${base+prefix(item.code)+suffix}" data-code="${item.code}"${item.code===code?' selected':''}>${item.name}</option>`).join('');
+  data.alternateLinks=languages.map(item=>`<link rel="alternate" hreflang="${item.code}" href="${siteUrl+prefix(item.code)+suffix}">`).join('')+`<link rel="alternate" hreflang="x-default" href="${siteUrl+suffix}">`;
+  const directory=path.join(out,prefix(code),page==='home'?'':'changelog');await mkdir(directory,{recursive:true});
+  await writeFile(path.join(directory,'index.html'),render(translateMarkup(page==='home'?homeTemplate:notesTemplate,code),data));
+  sitemap.push(canonical);
+ }
+}
 for(const name of ['site.css','site.js'])await cp(path.join(root,'site',name),path.join(out,'assets',name));
 await writeFile(path.join(out,'assets',cssName),cssSource);await writeFile(path.join(out,'assets',jsName),jsSource);
-for(const name of ['app-icon.png','app.ico','preview.png','preview-dark-zh.png','settings.png'])await cp(path.join(root,'assets',name),path.join(out,'assets',name));
+for(const name of await readdir(path.join(root,'assets')))if(name.endsWith('.png')||name==='app.ico')await cp(path.join(root,'assets',name),path.join(out,'assets',name));
 await writeFile(path.join(out,'.nojekyll'),'');
 await writeFile(path.join(out,'robots.txt'),`User-agent: *\nAllow: /\nSitemap: ${siteUrl}/sitemap.xml\n`);
-await writeFile(path.join(out,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escape(siteUrl)}/</loc></url><url><loc>${escape(siteUrl)}/changelog/</loc></url></urlset>`);
-await writeFile(path.join(out,'404.html'),`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>페이지를 찾을 수 없습니다 — Pixel Pin</title><link rel="stylesheet" href="${base}/assets/site.css"><main class="shell section-space"><p class="eyebrow">404</p><h1>픽셀 하나,<br>길을 잃었네요.</h1><p class="section-description">요청한 페이지를 찾을 수 없습니다.</p><a class="button primary" style="margin-top:24px" href="${base}/">Pixel Pin 홈으로</a></main></html>`);
+await writeFile(path.join(out,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${sitemap.map(url=>`<url><loc>${escape(url)}</loc></url>`).join('')}</urlset>`);
+await writeFile(path.join(out,'404.html'),`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>페이지를 찾을 수 없습니다 — Pixel Pin</title><link rel="stylesheet" href="${base}/assets/${cssName}"><main class="shell section-space"><p class="eyebrow">404</p><h1>픽셀 하나,<br>길을 잃었네요.</h1><p class="section-description">요청한 페이지를 찾을 수 없습니다.</p><a class="button primary" style="margin-top:24px" href="${base}/">Pixel Pin 홈으로</a></main></html>`);
 await writeFile(path.join(out,'release-data.json'),JSON.stringify({version:latest.tag_name,publishedAt:latest.published_at,download:zip.browser_download_url,size:zip.size,releases:releases.map(r=>({version:r.tag_name,date:r.published_at,url:r.html_url}))},null,2));
-console.log(`Built ${releases.length} release(s), latest ${latest.tag_name}, ${out}`);
+console.log(`Built 3 languages × 2 pages, ${releases.length} release(s), latest ${latest.tag_name}, ${out}`);

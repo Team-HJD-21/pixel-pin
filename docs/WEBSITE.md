@@ -35,3 +35,9 @@ Publishing, editing, deleting, or unpublishing a release rebuilds the site. A re
 In Actions, `GITHUB_TOKEN` is passed only to the build process. No token is written into source or generated pages. `BASE_PATH` and `SITE_URL` come from the Pages configuration so paths also work with a repository URL.
 
 Screenshots are sample-data renders of the app interface, not a capture of a user's desktop. The browser color playground uses sample colors; screen picking requires the desktop app.
+
+## Languages and appearance
+
+Korean is served at `/`, English at `/en/`, and Simplified Chinese at `/zh-CN/`. Each has a release-notes page under `changelog/`. The header language selector keeps the current page type when navigating. Language and light/dark appearance are independent browser preferences. App and settings examples use the same language in both appearances.
+
+Website copy is maintained in `site/translations.mjs` as editorial English and Simplified Chinese, not browser machine translation. Translated release notes live in `site/releases/<tag>.en.md` and `<tag>.zh-CN.md`. A future release without a translated file displays its original release notes with a clear label; it is not silently machine-translated.
