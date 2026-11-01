@@ -26,6 +26,7 @@ for(const code of ['ko','en','zh-CN']){
  assert(html.includes(`data-code="${code}" selected`),'Wrong selected language');
  assert(html.includes(`/assets/preview-${code}-light.png`),'Wrong preview language');
  assert(!html.includes('다크 · 简体中文'),'Theme and language must be independent');
+ assert.equal((html.match(/data-preview-surface="/g)||[]).length,3,'Exactly three sample surfaces are required');
  const notes=await readFile(path.join(root,prefix,'changelog/index.html'),'utf8');
  assert(notes.includes(`data-code="${code}" selected`),'Wrong release-notes language');
  assert(notes.includes(`${process.env.BASE_PATH||''}/zh-CN/changelog/`),'Language switch should keep the release-notes page');
@@ -38,5 +39,7 @@ for(const code of ['ko','en','zh-CN']){
 }
 const release=JSON.parse(await readFile(path.join(root,'release-data.json'),'utf8'));assert(release.releases.length>0);assert.match(release.download,/^https:\/\/github\.com\/Team-HJD-21\/pixel-pin\/releases\/download\//i);
 const css=await readFile(path.join(root,'assets/site.css'),'utf8');assert(css.includes('@media(max-width:760px)'));assert(css.includes('prefers-reduced-motion'));
+assert(!css.includes('html[data-theme='),'Sample theme must not target the website root');
+assert(css.includes('[data-preview-surface][data-preview-theme=dark]'),'Missing scoped dark sample palette');
 const home=await readFile(path.join(root,'index.html'),'utf8');assert(home.includes('clipboard')===false);assert(home.includes('aria-live="polite"'));
 console.log('PASS: 3 language homepages and release notes, localized previews, routes, assets, anchors, release links, responsive/reduced-motion rules.');

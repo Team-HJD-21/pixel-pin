@@ -53,11 +53,12 @@ if(languagePicker){
   }
 }
 const appearanceButtons=document.querySelectorAll('[data-preview]');
+const previewSurfaces=document.querySelectorAll('[data-preview-surface]');
 const previewImage=document.querySelector('#app-preview');
 const settingsImage=document.querySelector('.settings-image img');
 function applyAppearance(mode,save=false){
-  if(pageRoot)pageRoot.dataset.theme=mode;
-  if(save)preference('pixelpin.theme',mode);
+  previewSurfaces.forEach(surface=>{surface.dataset.previewTheme=mode;});
+  if(save)preference('pixelpin.previewTheme',mode);
   if(previewImage){
     previewImage.src=new URL(`preview-${pageLanguage}-${mode}.png`,previewImage.src).href;
     previewImage.alt=pageLanguage==='en'?`Pixel Pin ${mode} appearance example`:pageLanguage==='zh-CN'?`Pixel Pin ${mode==='dark'?'深色':'浅色'}模式示例`:`Pixel Pin ${mode==='dark'?'다크':'라이트'} 모드 화면 예시`;
@@ -65,8 +66,6 @@ function applyAppearance(mode,save=false){
   if(settingsImage)settingsImage.src=new URL(`settings-${pageLanguage}-${mode}.png`,settingsImage.src).href;
   appearanceButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.preview===mode)));
 }
-const systemAppearance=window.matchMedia?.('(prefers-color-scheme: dark)');
-const savedAppearance=preference('pixelpin.theme');
-applyAppearance(savedAppearance==='light'||savedAppearance==='dark'?savedAppearance:systemAppearance?.matches?'dark':'light');
+const savedAppearance=preference('pixelpin.previewTheme');
+applyAppearance(savedAppearance==='dark'?'dark':'light');
 appearanceButtons.forEach(button=>button.addEventListener('click',()=>applyAppearance(button.dataset.preview,true)));
-systemAppearance?.addEventListener('change',event=>{if(!preference('pixelpin.theme'))applyAppearance(event.matches?'dark':'light');});

@@ -38,6 +38,6 @@ Screenshots are sample-data renders of the app interface, not a capture of a use
 
 ## Languages and appearance
 
-Korean is served at `/`, English at `/en/`, and Simplified Chinese at `/zh-CN/`. Each has a release-notes page under `changelog/`. The header language selector keeps the current page type when navigating. Language and light/dark appearance are independent browser preferences. App and settings examples use the same language in both appearances.
+Korean is served at `/`, English at `/en/`, and Simplified Chinese at `/zh-CN/`. Each has a release-notes page under `changelog/`. The header language selector keeps the current page type when navigating. Light/dark controls affect only the three samples: the main app image, color playground, and settings image. Website colors continue to follow the device preference and are not changed by sample controls. The sample appearance is stored as `pixelpin.previewTheme`, independently of language. App and settings samples keep the selected language in both appearances.
 
 Website copy is maintained in `site/translations.mjs` as editorial English and Simplified Chinese, not browser machine translation. Translated release notes live in `site/releases/<tag>.en.md` and `<tag>.zh-CN.md`. A future release without a translated file displays its original release notes with a clear label; it is not silently machine-translated.
