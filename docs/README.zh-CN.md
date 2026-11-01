@@ -12,7 +12,7 @@
 
 [官方网站](https://pixelpin.teamhjd.com/) · [下载](https://github.com/Team-HJD-21/pixel-pin/releases/latest) · [更新日志](https://pixelpin.teamhjd.com/changelog/) · [反馈问题](https://github.com/Team-HJD-21/pixel-pin/issues)
 
-<br /><img src="../assets/preview-dark-zh.png" width="360" alt="Pixel Pin 简体中文深色模式示例" />
+<br /><img src="https://pixelpin.teamhjd.com/assets/preview-zh-CN-light.png" width="360" alt="Pixel Pin 简体中文深色模式示例" />
 
 <sub>界面示例，使用演示颜色。</sub>
 
