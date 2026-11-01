@@ -5,9 +5,19 @@
 
 /* Separate sections with space and surfaces rather than full-width rules. */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.language-control{display:inline-flex;flex-shrink:0}
-.language-control select{background:var(--soft);color:var(--ink);border:0;border-radius:8px;padding:8px 10px;min-width:104px;font-family:inherit;font-size:11px;cursor:pointer}
-.language-control select:focus-visible{outline:3px solid var(--blue);outline-offset:4px}
+.language-control{position:relative;display:inline-flex;flex-shrink:0}
+.language-toggle{display:inline-flex;align-items:center;justify-content:space-between;gap:16px;min-width:106px;padding:9px 13px;background:var(--soft);color:var(--ink);border:0;border-radius:10px;font-size:12px;line-height:1.5;transition:background .16s ease,color .16s ease}
+.language-toggle:hover,.language-toggle[aria-expanded=true]{background:var(--tint);color:var(--blue)}
+.language-chevron{width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(45deg);transition:transform .16s ease}
+.language-toggle[aria-expanded=true] .language-chevron{transform:translateY(1px) rotate(225deg)}
+.language-options{position:absolute;top:calc(100% + 9px);right:0;z-index:5;display:grid;gap:3px;min-width:164px;padding:6px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:13px;box-shadow:0 16px 38px -18px #101a3a66;animation:language-appear .14s ease-out}
+.language-options[hidden]{display:none}
+.language-option{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:10px 12px;border-radius:8px;font-size:13px;line-height:1.45;transition:background .14s ease,color .14s ease}
+.language-option:hover{background:var(--soft)}
+.language-option[aria-current=page]{background:var(--tint);color:var(--blue);font-weight:650}
+.language-option[aria-current=page]:after{content:"";width:5px;height:5px;background:currentColor;border-radius:50%}
+.language-toggle:focus-visible,.language-option:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+@keyframes language-appear{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 html[lang=en] body,html[lang=zh-CN] body{word-break:normal}
 html[lang=en] .hero h1{font-size:clamp(42px,4.7vw,64px);letter-spacing:-.055em}
 html[lang=en] .hero-description{font-size:16px}
@@ -39,6 +49,18 @@ html[lang=zh-CN] .eyebrow{letter-spacing:.1em}
 .latest-release{border:0;background:var(--surface);border-radius:18px;padding:30px 34px;transition:transform .15s}
 .latest-release:hover{padding:30px 34px;transform:translateY(-2px)}
 .faq-section details{border:0;background:var(--surface);border-radius:12px;margin-bottom:12px;padding:20px 24px}
+.faq-section details{transition:transform .18s ease,background .18s ease,box-shadow .18s ease}
+.faq-section summary{transition:color .18s ease}
+.faq-section summary:after{top:50%;right:0;display:grid;place-items:center;width:25px;height:25px;background:transparent;line-height:1;transform:translateY(-50%);transition:transform .18s ease}
+.faq-section details:has(>summary:focus-visible){background:var(--tint);box-shadow:0 0 0 2px var(--blue)}
+.faq-section summary:focus-visible{outline:2px solid var(--blue);outline-offset:5px;border-radius:3px}
+.faq-section details:has(>summary:focus-visible)>summary:focus-visible{outline:none}
+@media(hover:hover) and (pointer:fine){
+  .faq-section details:hover{transform:translateY(-2px);background:var(--tint);box-shadow:0 10px 24px -17px #101a3a66}
+  .faq-section details:hover>summary{color:var(--blue)}
+  .faq-section details:hover>summary:after{transform:translateY(-50%) scale(1.12)}
+}
+@media(prefers-reduced-motion:reduce){.language-options{animation:none}.faq-section details:hover{transform:none}.faq-section details:hover>summary:after{transform:translateY(-50%)}}
 .site-footer{border:0;background:var(--soft);border-radius:16px;padding:24px 28px;margin-bottom:24px}
 .version-nav{background:var(--soft);border:0;border-radius:14px;padding:20px}
 .version-nav .github-release-link{border:0;padding-top:8px;margin-top:0}

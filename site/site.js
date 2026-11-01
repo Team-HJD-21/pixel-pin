@@ -44,12 +44,28 @@ if (demoValue) {
 }
 
 function preference(key,value){try{if(value===undefined)return window.localStorage.getItem(key);window.localStorage.setItem(key,value);}catch{}return null;}
-const languagePicker=document.querySelector('#site-language');
-if(languagePicker){
-  languagePicker.addEventListener('change',()=>{const option=languagePicker.options[languagePicker.selectedIndex];preference('pixelpin.language',option.dataset.code);window.location.assign(option.value);});
+const languageControl=document.querySelector('.language-control');
+const languageToggle=document.querySelector('#language-toggle');
+const languageOptions=document.querySelector('#language-options');
+const languageLinks=[...document.querySelectorAll('[data-language]')];
+if(languageControl&&languageToggle&&languageOptions){
+  function setLanguageOpen(open,restoreFocus=false){languageOptions.hidden=!open;languageToggle.setAttribute('aria-expanded',String(open));if(restoreFocus)languageToggle.focus();}
+  languageToggle.addEventListener('click',()=>setLanguageOpen(languageOptions.hidden));
+  languageLinks.forEach(link=>link.addEventListener('click',()=>{preference('pixelpin.language',link.dataset.language);setLanguageOpen(false);}));
+  document.addEventListener('pointerdown',event=>{if(!languageControl.contains(event.target))setLanguageOpen(false);});
+  languageControl.addEventListener('focusout',event=>{if(event.relatedTarget&&!languageControl.contains(event.relatedTarget))setLanguageOpen(false);});
+  languageControl.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&!languageOptions.hidden){event.preventDefault();setLanguageOpen(false,true);return;}
+    if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+      event.preventDefault();const wasClosed=languageOptions.hidden;setLanguageOpen(true);
+      let index=languageLinks.indexOf(document.activeElement);
+      index=wasClosed||index<0?(event.key==='ArrowDown'?0:languageLinks.length-1):(index+(event.key==='ArrowDown'?1:-1)+languageLinks.length)%languageLinks.length;
+      languageLinks[index]?.focus();
+    }else if(!languageOptions.hidden&&(event.key==='Home'||event.key==='End')){event.preventDefault();languageLinks[event.key==='Home'?0:languageLinks.length-1]?.focus();}
+  });
   const remembered=preference('pixelpin.language');
   if(pageLanguage==='ko'&&window.location.pathname===(pageRoot.dataset.base||'')+'/'&&remembered&&remembered!=='ko'){
-    const option=[...languagePicker.options].find(item=>item.dataset.code===remembered);if(option)window.location.replace(option.value);
+    const link=languageLinks.find(item=>item.dataset.language===remembered);if(link)window.location.replace(link.href);
   }
 }
 const appearanceButtons=document.querySelectorAll('[data-preview]');

@@ -22,18 +22,20 @@ for(const name of pages){
 for(const code of ['ko','en','zh-CN']){
  const prefix=code==='ko'?'':code+'/';
  const html=await readFile(path.join(root,prefix,'index.html'),'utf8');
- assert(html.includes('id="site-language"'),'Missing language picker');
- assert(html.includes(`data-code="${code}" selected`),'Wrong selected language');
+ assert(html.includes('id="language-toggle"'),'Missing language picker');
+ assert(html.includes('id="language-options"')&&html.includes('aria-controls="language-options"'),'Missing language popover association');
+ assert(!html.includes('<select'),'Native menu should be replaced by the site-styled popover');
+ assert(html.includes(`data-language="${code}" aria-current="page"`),'Wrong selected language');
  assert(html.includes(`/assets/preview-${code}-light.png`),'Wrong preview language');
  assert(!html.includes('다크 · 简体中文'),'Theme and language must be independent');
  assert.equal((html.match(/data-preview-surface="/g)||[]).length,3,'Exactly three sample surfaces are required');
  const notes=await readFile(path.join(root,prefix,'changelog/index.html'),'utf8');
- assert(notes.includes(`data-code="${code}" selected`),'Wrong release-notes language');
+ assert(notes.includes(`data-language="${code}" aria-current="page"`),'Wrong release-notes language');
  assert(notes.includes(`${process.env.BASE_PATH||''}/zh-CN/changelog/`),'Language switch should keep the release-notes page');
  if(code!=='ko'){
-  const visible=html.replace(/<option[^>]*>[\s\S]*?<\/option>/g,'').replaceAll('한국어 · English · 简体中文','');
+  const visible=html.replace(/<a\b[^>]*\bdata-language=[^>]*>[\s\S]*?<\/a>/g,'').replaceAll('한국어 · English · 简体中文','');
   const korean=visible.match(/[가-힣][가-힣\s·,/.?]+/g);assert(!korean,`Untranslated copy in ${code}: ${korean?.join(' | ')}`);
-  assert(!/[가-힣]/.test(notes.replace(/<option[^>]*>[\s\S]*?<\/option>/g,'')),`Untranslated release notes in ${code}`);
+  assert(!/[가-힣]/.test(notes.replace(/<a\b[^>]*\bdata-language=[^>]*>[\s\S]*?<\/a>/g,'')),`Untranslated release notes in ${code}`);
  }
  for(const mode of ['light','dark'])for(const kind of ['preview','settings'])await stat(path.join(root,'assets',`${kind}-${code}-${mode}.png`));
 }

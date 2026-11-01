@@ -1,5 +1,6 @@
 // Editorial copy, written for each language rather than generated in the browser.
 const entries = [
+ ['언어 선택','Choose language','选择语言'],
  ['Pixel Pin — 마음에 든 색, 그대로.','Pixel Pin — Pick it. Pin it.','Pixel Pin — 看中的颜色，一键固定。'],
  ['Windows를 위한 작은 컬러 피커. 화면의 픽셀 색상을 고르고, 고정하고, 원하는 포맷으로 복사하세요.','A clean little color picker for Windows. Find a screen color, pin it, and copy it in the format you need.','简洁好用的 Windows 取色工具。找到屏幕上的颜色，点击固定，再按需要的格式复制。'],
  ['화면의 색을 고르고, 고정하고, 복사하세요. Made by TeamHJD.','Pick a color. Pin the pixel. Copy it your way. Made by TeamHJD.','发现颜色，固定像素，按需复制。由 TeamHJD 制作。'],

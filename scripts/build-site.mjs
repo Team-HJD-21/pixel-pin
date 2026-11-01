@@ -72,7 +72,8 @@ for(const language of languages){
   const suffix=page==='home'?'/':'/changelog/';
   const canonical=siteUrl+prefix(code)+suffix;
   const data={base,language:code,siteUrl:escape(siteUrl),canonical:escape(canonical),home:base+prefix(code)+'/',changelog:base+prefix(code)+'/changelog/',download:safeUrl(zip.browser_download_url),version:escape(latest.tag_name),releaseName:escape(localizedName(latest,code)),size:(zip.size/1048576).toFixed(1),publishedIso:escape(latest.published_at),date:date(latest.published_at),releaseAnchor:anchor(latest),versionLinks,releaseCards,year:'2026',styleUrl:base+'/assets/'+cssName,scriptUrl:base+'/assets/'+jsName,previewImage:base+`/assets/preview-${code}-light.png`,settingsImage:base+`/assets/settings-${code}-light.png`};
-  data.languageOptions=languages.map(item=>`<option value="${base+prefix(item.code)+suffix}" data-code="${item.code}"${item.code===code?' selected':''}>${item.name}</option>`).join('');
+  data.languageName=language.name;data.languageControlLabel=tr('언어 선택',code)+' · '+language.name;
+  data.languageOptions=languages.map(item=>`<a class="language-option" href="${base+prefix(item.code)+suffix}" lang="${item.code}" hreflang="${item.code}" data-language="${item.code}"${item.code===code?' aria-current="page"':''}>${item.name}</a>`).join('');
   data.alternateLinks=languages.map(item=>`<link rel="alternate" hreflang="${item.code}" href="${siteUrl+prefix(item.code)+suffix}">`).join('')+`<link rel="alternate" hreflang="x-default" href="${siteUrl+suffix}">`;
   const directory=path.join(out,prefix(code),page==='home'?'':'changelog');await mkdir(directory,{recursive:true});
   await writeFile(path.join(directory,'index.html'),render(translateMarkup(page==='home'?homeTemplate:notesTemplate,code),data));
