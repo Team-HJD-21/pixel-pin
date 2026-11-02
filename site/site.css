@@ -110,4 +110,16 @@ html[lang=zh-CN] .eyebrow{letter-spacing:.1em}
 .footer-preferences button:hover{background:var(--tint)}
 #preferences-feedback{flex-basis:100%;font-size:12px}
 #preferences-feedback:empty{display:none}
+.footer-preferences>.related-sites{position:relative;flex:0 1 224px;width:224px;max-width:100%;margin:0 0 0 auto;padding:0;border:0;background:transparent}
+.related-sites>summary{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:44px;padding:11px 15px;border:1px solid var(--line);border-radius:8px;color:var(--muted);font-size:13px;font-weight:500;line-height:1.5;list-style:none;cursor:pointer;transition:background .15s ease,color .15s ease}
+.related-sites>summary::-webkit-details-marker{display:none}
+.related-sites>summary::marker{content:''}
+.related-sites>summary:after{content:'';position:static;display:block;flex-shrink:0;width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(2px) rotate(225deg)}
+.related-sites[open]>summary:after{content:'';transform:translateY(-2px) rotate(45deg)}
+.related-sites>summary:hover,.related-sites[open]>summary{color:var(--ink);background:var(--surface)}
+.related-sites-panel{position:absolute;bottom:calc(100% + 9px);right:0;z-index:10;width:280px;max-width:calc(100vw - 80px);display:grid;gap:3px;padding:7px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 -12px 36px -18px #101a3a66}
+.related-sites-panel a{display:grid;gap:2px;padding:11px 12px;border-radius:7px;color:var(--ink);font-size:13px;line-height:1.5;overflow-wrap:anywhere;transition:background .15s ease}
+.related-sites-panel a:hover{background:var(--tint)}
+.related-sites-panel .related-site-domain{color:var(--muted);font-size:11px}
+@media(max-width:760px){.footer-preferences>.related-sites{flex:1 1 100%;width:100%;margin-left:0}.related-sites-panel{width:100%;max-width:100%}}
 @media(max-width:760px){.legal-main{padding-block:36px 50px}.legal-heading{margin-bottom:26px}.legal-heading>p:not(.eyebrow){font-size:15px}.legal-layout{grid-template-columns:1fr;gap:20px}.legal-nav{position:static;display:flex;flex-wrap:wrap;padding:12px;gap:4px}.legal-nav a{font-size:12px}.legal-copy section{padding:22px 20px}.legal-copy p{font-size:15px}.site-footer>.footer-links{justify-content:flex-start}.footer-preferences button{min-height:44px}}

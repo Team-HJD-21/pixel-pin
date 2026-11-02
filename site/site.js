@@ -96,3 +96,12 @@ resetPreferences?.addEventListener('click',()=>{
     if(preferenceFeedback)preferenceFeedback.textContent=messages[0];
   }catch{if(preferenceFeedback)preferenceFeedback.textContent=messages[1];}
 });
+
+const relatedSitesControl=document.querySelector('#related-sites');
+if(relatedSitesControl){
+  document.addEventListener('pointerdown',event=>{if(!relatedSitesControl.contains(event.target))relatedSitesControl.open=false;});
+  relatedSitesControl.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&relatedSitesControl.open){event.preventDefault();relatedSitesControl.open=false;relatedSitesControl.querySelector('summary')?.focus();}
+  });
+  relatedSitesControl.addEventListener('focusout',event=>{if(event.relatedTarget&&!relatedSitesControl.contains(event.relatedTarget))relatedSitesControl.open=false;});
+}

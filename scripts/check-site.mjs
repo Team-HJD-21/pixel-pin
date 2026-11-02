@@ -12,6 +12,8 @@ for(const name of pages){
     const prefix=code==='ko'?'':`/${code}`;
     for(const page of ['terms','privacy','support'])assert(html.includes(`href="${process.env.BASE_PATH||''}${prefix}/${page}/"`),'Missing localized policy link');
     assert(html.includes('id="reset-site-preferences"'),'Missing preferences reset');
+    assert(html.includes('<details class="related-sites" id="related-sites">'),'Missing related sites in footer');
+    for(const domain of ['teamhjd.com','threadle.teamhjd.com','docs.teamhjd.com','testlauncher.teamhjd.com'])assert(html.includes(`href="https://${domain}/" target="_blank" rel="noopener noreferrer"`),'Missing related site '+domain);
     if(code!=='ko')assert(!/[가-힣]/.test(html.replace(/<a\b[^>]*\bdata-language=[^>]*>[\s\S]*?<\/a>/g,'').replaceAll('한국어 · English · 简体中文','')),'Untranslated policy or footer');
   }
   const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'Duplicate IDs');
