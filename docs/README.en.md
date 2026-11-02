@@ -6,6 +6,12 @@
 
 # Pixel Pin
 
+[Terms of Use](https://pixelpin.teamhjd.com/en/terms/) · [Privacy Policy](https://pixelpin.teamhjd.com/en/privacy/) · [Support & payments](https://pixelpin.teamhjd.com/en/support/)
+
+Updated builds add **Clear recent colors** and **Restore default preferences** to Settings. Clearing colors removes current and legacy history; restoring preferences resets only appearance, language, and format. Neither clears the Windows clipboard. With v1.1.0, close the app and manually remove local files in `%LOCALAPPDATA%\PixelPin`, and any legacy `%LOCALAPPDATA%\DigitalColorMeter\history.json`, if you want to erase them.
+
+The app is free. Optional Lemon Squeezy purchases are under consideration and are not enabled. Product, seller, privacy, and refund details must be confirmed before payment is offered.
+
 **Pick a color. Pin the pixel. Copy it your way.**
 
 A small, clean Windows color picker by [TeamHJD](https://teamhjd.com/).

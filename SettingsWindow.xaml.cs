@@ -38,4 +38,28 @@ public partial class SettingsWindow : Window
         { SaveHint.SetResourceReference(TextBlock.TextProperty, "L.SettingsSaveFailed"); SaveHint.SetResourceReference(TextBlock.ForegroundProperty, "Error"); }
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
+    private void ClearHistory_Click(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(this, Localization.Get("ClearHistoryConfirm"), Localization.Get("ClearHistory"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        bool saved = Owner is MainWindow main && main.ClearRecentColors();
+        ShowDataResult(saved, "HistoryCleared");
+    }
+    private void ResetSettings_Click(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(this, Localization.Get("ResetSettingsConfirm"), Localization.Get("ResetSettings"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        ShowDataResult(SettingsStore.Reset(), "SettingsReset");
+    }
+    private void ShowDataResult(bool success, string successKey)
+    {
+        DataResult.Text = Localization.Get(success ? successKey : "DataClearFailed");
+        DataResult.SetResourceReference(TextBlock.ForegroundProperty, success ? "Muted" : "Error");
+    }
+    private void Policy_Click(object sender, RoutedEventArgs e)
+    {
+        string suffix = (sender as Button)?.Tag as string ?? "privacy";
+        if (suffix is not ("privacy" or "terms" or "support")) return;
+        string language = SettingsStore.Current.Language switch { UiLanguage.English => "en/", UiLanguage.Chinese => "zh-CN/", _ => "" };
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo($"https://pixelpin.teamhjd.com/{language}{suffix}/") { UseShellExecute = true }); }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { DataResult.Text = Localization.Get("BrowserFailed"); }
+    }
 }

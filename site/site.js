@@ -85,3 +85,14 @@ function applyAppearance(mode,save=false){
 const savedAppearance=preference('pixelpin.previewTheme');
 applyAppearance(savedAppearance==='dark'?'dark':'light');
 appearanceButtons.forEach(button=>button.addEventListener('click',()=>applyAppearance(button.dataset.preview,true)));
+
+const resetPreferences=document.querySelector('#reset-site-preferences');
+const preferenceFeedback=document.querySelector('#preferences-feedback');
+resetPreferences?.addEventListener('click',()=>{
+  const messages={ko:['이 사이트에 저장된 언어·미리보기 설정을 삭제했습니다. 현재 페이지의 언어는 유지됩니다.','설정을 삭제하지 못했습니다. 브라우저의 사이트 데이터 설정에서 삭제해 주세요.'],en:['Saved language and preview preferences have been removed. This page stays in its current language.','Preferences could not be removed. Please clear this site’s data in your browser settings.'],'zh-CN':['已删除本网站保存的语言和预览设置。当前页面的语言保持不变。','未能删除设置，请在浏览器设置中清除此网站的数据。']}[pageLanguage];
+  try{
+    for(const key of ['pixelpin.language','pixelpin.previewTheme','pixelpin.theme'])window.localStorage.removeItem(key);
+    applyAppearance('light');
+    if(preferenceFeedback)preferenceFeedback.textContent=messages[0];
+  }catch{if(preferenceFeedback)preferenceFeedback.textContent=messages[1];}
+});

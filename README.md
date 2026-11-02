@@ -109,6 +109,12 @@ dotnet publish PixelPin.csproj -c Release -r win-x64 --self-contained true `
 
 ## 사이트와 패치노트
 
+[이용약관](https://pixelpin.teamhjd.com/terms/) · [개인정보처리방침](https://pixelpin.teamhjd.com/privacy/) · [후원 및 결제 안내](https://pixelpin.teamhjd.com/support/)
+
+설정의 **최근 색상 삭제**는 현재·이전 버전의 색상 기록을 지웁니다. **설정 기본값으로 복원**은 화면 모드·언어·포맷만 초기화하며 최근 색상과 Windows 클립보드는 유지합니다. 기존 v1.1.0 배포본에는 이 버튼이 없으므로 새 앱 배포 전에는 앱을 종료한 뒤 `%LOCALAPPDATA%\PixelPin`의 파일을 직접 삭제해 주세요. 이전 버전의 기록은 `%LOCALAPPDATA%\DigitalColorMeter\history.json`에도 남을 수 있습니다.
+
+Pixel Pin은 무료로 사용할 수 있습니다. Lemon Squeezy를 통한 선택 결제는 검토 중이며 아직 활성화하지 않았습니다. 상품 구성·개인정보 처리·환불 조건과 필요한 운영자 정보를 확정한 뒤 안내합니다.
+
 `site/`와 `scripts/build-site.mjs`로 정적 사이트를 만듭니다. GitHub Pages가 `pixelpin.teamhjd.com`을 호스팅합니다. 릴리스를 게시·수정하면 공개 릴리스에서 패치노트와 다운로드 링크를 다시 생성합니다. 사이트 방문 시 GitHub API를 호출하지 않습니다.
 
 ```powershell

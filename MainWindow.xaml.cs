@@ -194,6 +194,13 @@ public partial class MainWindow : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
     }
     private void Notice(string key) { noticeKey = key; NoticeText.Text = Localization.Get(key); noticeTimer.Stop(); noticeTimer.Start(); }
+    public bool ClearRecentColors()
+    {
+        bool saved = LocalDataFiles.ClearHistory(historyPath, legacyHistoryPath);
+        history.Clear(); copiedIndicator = false; RenderHistory(); ApplyLabels();
+        Notice(saved ? "HistoryCleared" : "DataClearFailed");
+        return saved;
+    }
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         if (settingsWindow is { IsVisible: true }) { settingsWindow.Activate(); return; }

@@ -2,11 +2,18 @@ import assert from 'node:assert/strict';
 import {readFile,stat} from 'node:fs/promises';
 import path from 'node:path';
 const root=path.resolve(process.argv[2]||'.pages');
-const pages=['index.html','changelog/index.html','en/index.html','en/changelog/index.html','zh-CN/index.html','zh-CN/changelog/index.html','404.html'];
+const pages=['','en/','zh-CN/'].flatMap(prefix=>['index.html',...['changelog','terms','privacy','support'].map(page=>`${page}/index.html`)].map(page=>prefix+page)).concat('404.html');
 for(const name of pages){
   const html=await readFile(path.join(root,name),'utf8');
   assert(!/\{\{\w+\}\}/.test(html),'Unresolved template token');
   assert(/<html lang="(ko|en|zh-CN)"/.test(html),'Missing document language');
+  if(name!=='404.html'){
+    const code=name.startsWith('en/')?'en':name.startsWith('zh-CN/')?'zh-CN':'ko';
+    const prefix=code==='ko'?'':`/${code}`;
+    for(const page of ['terms','privacy','support'])assert(html.includes(`href="${process.env.BASE_PATH||''}${prefix}/${page}/"`),'Missing localized policy link');
+    assert(html.includes('id="reset-site-preferences"'),'Missing preferences reset');
+    if(code!=='ko')assert(!/[가-힣]/.test(html.replace(/<a\b[^>]*\bdata-language=[^>]*>[\s\S]*?<\/a>/g,'').replaceAll('한국어 · English · 简体中文','')),'Untranslated policy or footer');
+  }
   const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'Duplicate IDs');
   for(const match of html.matchAll(/(?:href|src)="([^"]+)"/g)){
     const value=match[1];if(/^https:|^mailto:/.test(value))continue;

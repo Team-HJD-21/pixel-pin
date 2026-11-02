@@ -22,6 +22,7 @@ public static class SettingsStore
     private static readonly string FilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PixelPin", "settings.json");
     public static AppSettings Current { get; private set; } = new();
     public static event Action? Changed;
+    public static bool Reset() => Update(new AppSettings());
     public static void Load()
     {
         try

@@ -38,6 +38,7 @@ jobs:
         run: |
           node scripts/check-site.mjs
           node scripts/test-site.mjs
+          node scripts/check-policies.mjs
         env:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}
       - uses: actions/upload-pages-artifact@v4

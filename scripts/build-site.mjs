@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {languages,tr,translateMarkup} from '../site/translations.mjs';
+import {policies,policyUi,policyDate} from '../site/policies.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const out=path.join(root,'.pages');
@@ -54,6 +55,7 @@ function render(template,data){return template.replace(/\{\{(\w+)\}\}/g,(_,key)=
 await mkdir(path.join(out,'assets'),{recursive:true});
 const homeTemplate=await readFile(path.join(root,'site/index.html'),'utf8');
 const notesTemplate=await readFile(path.join(root,'site/changelog.html'),'utf8');
+const legalTemplate=homeTemplate.replace(/<title>[\s\S]*?<\/title>/,'<title>{{policyTitle}} — Pixel Pin</title>').replace(/<meta name="description" content="[^"]*">/,'<meta name="description" content="{{policyDescription}}">').replace(/<main\b[\s\S]*?<\/main>/,'<main id="main" class="shell legal-main"><header class="legal-heading"><p class="eyebrow">PIXEL PIN / {{policyEyebrow}}</p><h1>{{policyTitle}}</h1><p>{{policySummary}}</p><p class="policy-date">{{policyUpdated}} <time datetime="'+policyDate+'">'+policyDate+'</time></p></header><div class="legal-layout"><nav class="legal-nav" aria-label="{{policyTitle}}">{{policyNavigation}}</nav><article class="legal-copy">{{policyBody}}<a class="text-link" href="{{home}}">{{policyBack}}</a></article></div></main>');
 const sitemap=[];
 for(const language of languages){
  const code=language.code;
@@ -68,15 +70,23 @@ for(const language of languages){
   const asset=r.assets.find(a=>/win-x64\.zip$/i.test(a.name));
   return `<article class="release-article" id="${anchor(r)}"><div class="release-meta"><span class="version-tag">${escape(r.tag_name)}</span><time datetime="${escape(r.published_at)}">${date(r.published_at)}</time>${i===0?'<span class="latest-badge">'+(code==='zh-CN'?'最新版本':'LATEST')+'</span>':''}</div><h2>${escape(localizedName(r,code))}</h2>${fallback?'<p class="fine-print">'+tr('원문 패치노트',code)+'</p>':''}<div class="release-body">${markdown(body)}</div><div class="release-links"><a href="${safeUrl(r.html_url)}">${tr('GitHub에서 보기',code)}</a>${asset?`<a href="${safeUrl(asset.browser_download_url)}">${tr('이 버전 다운로드',code)}</a>`:''}</div></article>`;
  }))).join('\n');
- for(const page of ['home','changelog']){
-  const suffix=page==='home'?'/':'/changelog/';
+ for(const page of ['home','changelog','terms','privacy','support']){
+  const suffix=page==='home'?'/':`/${page}/`;
   const canonical=siteUrl+prefix(code)+suffix;
   const data={base,language:code,siteUrl:escape(siteUrl),canonical:escape(canonical),home:base+prefix(code)+'/',changelog:base+prefix(code)+'/changelog/',download:safeUrl(zip.browser_download_url),version:escape(latest.tag_name),releaseName:escape(localizedName(latest,code)),size:(zip.size/1048576).toFixed(1),publishedIso:escape(latest.published_at),date:date(latest.published_at),releaseAnchor:anchor(latest),versionLinks,releaseCards,year:'2026',styleUrl:base+'/assets/'+cssName,scriptUrl:base+'/assets/'+jsName,previewImage:base+`/assets/preview-${code}-light.png`,settingsImage:base+`/assets/settings-${code}-light.png`};
   data.languageName=language.name;data.languageControlLabel=tr('언어 선택',code)+' · '+language.name;
   data.languageOptions=languages.map(item=>`<a class="language-option" href="${base+prefix(item.code)+suffix}" lang="${item.code}" hreflang="${item.code}" data-language="${item.code}"${item.code===code?' aria-current="page"':''}>${item.name}</a>`).join('');
   data.alternateLinks=languages.map(item=>`<link rel="alternate" hreflang="${item.code}" href="${siteUrl+prefix(item.code)+suffix}">`).join('')+`<link rel="alternate" hreflang="x-default" href="${siteUrl+suffix}">`;
-  const directory=path.join(out,prefix(code),page==='home'?'':'changelog');await mkdir(directory,{recursive:true});
-  await writeFile(path.join(directory,'index.html'),render(translateMarkup(page==='home'?homeTemplate:notesTemplate,code),data));
+  const ui=policyUi[code], policy=policies[code][page];
+  if(policy){
+   data.policyTitle=escape(ui[page]);data.policyDescription=escape(policy.description);data.policySummary=escape(policy.summary);data.policyUpdated=escape(ui.updated);data.policyBack=escape(ui.back);data.policyEyebrow=escape(ui.intro);
+   data.policyNavigation=policy.sections.map(([title],i)=>`<a href="#section-${i+1}">${escape(title)}</a>`).join('');
+   data.policyBody=policy.sections.map(([title,body,links],i)=>`<section id="section-${i+1}"><h2>${escape(title)}</h2><p>${escape(body)}</p>${links?`<p class="policy-sources">${links}</p>`:''}</section>`).join('');
+  }
+  const footer=`<footer class="site-footer shell"><a class="brand" href="${data.home}"><img src="${base}/assets/app-icon.png" width="25" height="25" alt=""><span>Pixel Pin</span></a><p>© 2026 TeamHJD. All rights reserved.</p><div class="footer-links"><a href="${base+prefix(code)}/terms/">${ui.terms}</a><a href="${base+prefix(code)}/privacy/">${ui.privacy}</a><a href="${base+prefix(code)}/support/">${ui.support}</a><a href="https://github.com/Team-HJD-21/pixel-pin/issues">${ui.contact}</a></div><div class="footer-preferences"><span>${ui.operator}</span><button id="reset-site-preferences" type="button">${ui.reset}</button><span id="preferences-feedback" role="status" aria-live="polite"></span></div></footer>`;
+  const template=page==='home'?homeTemplate:page==='changelog'?notesTemplate:legalTemplate.replace(/<meta property="og:title" content="[^"]*">/,'<meta property="og:title" content="{{policyTitle}} — Pixel Pin">').replace(/<meta property="og:description" content="[^"]*">/,'<meta property="og:description" content="{{policyDescription}}">');
+  const directory=path.join(out,prefix(code),page==='home'?'':page);await mkdir(directory,{recursive:true});
+  await writeFile(path.join(directory,'index.html'),render(translateMarkup(template,code),data).replace(/<footer\b[\s\S]*?<\/footer>/,footer));
   sitemap.push(canonical);
  }
 }
@@ -88,4 +98,4 @@ await writeFile(path.join(out,'robots.txt'),`User-agent: *\nAllow: /\nSitemap: $
 await writeFile(path.join(out,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${sitemap.map(url=>`<url><loc>${escape(url)}</loc></url>`).join('')}</urlset>`);
 await writeFile(path.join(out,'404.html'),`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>페이지를 찾을 수 없습니다 — Pixel Pin</title><link rel="stylesheet" href="${base}/assets/${cssName}"><main class="shell section-space"><p class="eyebrow">404</p><h1>픽셀 하나,<br>길을 잃었네요.</h1><p class="section-description">요청한 페이지를 찾을 수 없습니다.</p><a class="button primary" style="margin-top:24px" href="${base}/">Pixel Pin 홈으로</a></main></html>`);
 await writeFile(path.join(out,'release-data.json'),JSON.stringify({version:latest.tag_name,publishedAt:latest.published_at,download:zip.browser_download_url,size:zip.size,releases:releases.map(r=>({version:r.tag_name,date:r.published_at,url:r.html_url}))},null,2));
-console.log(`Built 3 languages × 2 pages, ${releases.length} release(s), latest ${latest.tag_name}, ${out}`);
+console.log(`Built 3 languages × 5 pages, ${releases.length} release(s), latest ${latest.tag_name}, ${out}`);

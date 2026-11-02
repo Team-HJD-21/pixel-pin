@@ -6,6 +6,12 @@
 
 # Pixel Pin
 
+[使用条款](https://pixelpin.teamhjd.com/zh-CN/terms/) · [隐私政策](https://pixelpin.teamhjd.com/zh-CN/privacy/) · [支持开发与付款说明](https://pixelpin.teamhjd.com/zh-CN/support/)
+
+更新版本在设置中新增**清除最近颜色**和**恢复默认设置**。清除颜色会删除当前及旧版记录；恢复默认设置仅重置外观、语言和格式，不会清除 Windows 剪贴板。v1.1.0 用户如需删除记录，请先退出应用，再手动删除 `%LOCALAPPDATA%\PixelPin` 中的文件及可能存在的 `%LOCALAPPDATA%\DigitalColorMeter\history.json`。
+
+应用免费提供。目前正在考虑通过 Lemon Squeezy 提供可选付费项目，尚未开放付款。商品、销售主体、隐私处理及退款条件确认后，会先行说明。
+
 **发现颜色，固定像素，按需复制。**
 
 由 [TeamHJD](https://teamhjd.com/) 制作的简洁 Windows 屏幕取色工具。

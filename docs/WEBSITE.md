@@ -1,5 +1,7 @@
 # Pixel Pin website
 
+Policy pages are generated at `/terms/`, `/privacy/`, and `/support/`, with matching `/en/` and `/zh-CN/` routes. Copy lives in `site/policies.mjs`; maintenance and payment-launch requirements are in `docs/POLICY-MAINTENANCE.md`. Website reset clears only the three known Pixel Pin localStorage keys and retains the language of the currently open page.
+
 - Production: https://pixelpin.teamhjd.com/
 - Release notes: https://pixelpin.teamhjd.com/changelog/
 - Hosting: GitHub Pages, GitHub Actions source
