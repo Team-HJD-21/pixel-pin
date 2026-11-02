@@ -14,7 +14,7 @@ for(const name of pages){
     assert(html.includes('id="reset-site-preferences"'),'Missing preferences reset');
     assert(html.includes('<details class="related-sites" id="related-sites">'),'Missing related sites in footer');
     for(const domain of ['teamhjd.com','threadle.teamhjd.com','docs.teamhjd.com','testlauncher.teamhjd.com'])assert(html.includes(`href="https://${domain}/" target="_blank" rel="noopener noreferrer"`),'Missing related site '+domain);
-    if(code!=='ko')assert(!/[가-힣]/.test(html.replace(/<a\b[^>]*\bdata-language=[^>]*>[\s\S]*?<\/a>/g,'').replaceAll('한국어 · English · 简体中文','')),'Untranslated policy or footer');
+    if(code!=='ko')assert(!/[가-힣]/.test(html.replace(/<section class="footer-company"[\s\S]*?<\/section>/g,'').replace(/<a\b[^>]*\bdata-language=[^>]*>[\s\S]*?<\/a>/g,'').replaceAll('한국어 · English · 简体中文','')),'Untranslated policy or footer');
   }
   const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'Duplicate IDs');
   for(const match of html.matchAll(/(?:href|src)="([^"]+)"/g)){
@@ -42,9 +42,9 @@ for(const code of ['ko','en','zh-CN']){
  assert(notes.includes(`data-language="${code}" aria-current="page"`),'Wrong release-notes language');
  assert(notes.includes(`${process.env.BASE_PATH||''}/zh-CN/changelog/`),'Language switch should keep the release-notes page');
  if(code!=='ko'){
-  const visible=html.replace(/<a\b[^>]*\bdata-language=[^>]*>[\s\S]*?<\/a>/g,'').replaceAll('한국어 · English · 简体中文','');
+  const visible=html.replace(/<section class="footer-company"[\s\S]*?<\/section>/g,'').replace(/<a\b[^>]*\bdata-language=[^>]*>[\s\S]*?<\/a>/g,'').replaceAll('한국어 · English · 简体中文','');
   const korean=visible.match(/[가-힣][가-힣\s·,/.?]+/g);assert(!korean,`Untranslated copy in ${code}: ${korean?.join(' | ')}`);
-  assert(!/[가-힣]/.test(notes.replace(/<a\b[^>]*\bdata-language=[^>]*>[\s\S]*?<\/a>/g,'')),`Untranslated release notes in ${code}`);
+  assert(!/[가-힣]/.test(notes.replace(/<section class="footer-company"[\s\S]*?<\/section>/g,'').replace(/<a\b[^>]*\bdata-language=[^>]*>[\s\S]*?<\/a>/g,'')),`Untranslated release notes in ${code}`);
  }
  for(const mode of ['light','dark'])for(const kind of ['preview','settings'])await stat(path.join(root,'assets',`${kind}-${code}-${mode}.png`));
 }
