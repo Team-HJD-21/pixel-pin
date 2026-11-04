@@ -192,6 +192,7 @@ final class PickerModel: ObservableObject {
     private let capture = ScreenCaptureEngine()
     private var latestRaster: PixelRaster?
     private var captureFrame = CGRect.zero
+    private var isSelectingScreen = false
     @Published var markerOffset = CGSize.zero
 
     init() {
@@ -207,7 +208,10 @@ final class PickerModel: ObservableObject {
             self?.captureFrame = frame
             self?.sample()
         }
-        capture.onState = { [weak self] state in self?.message = state }
+        capture.onState = { [weak self] state in
+            self?.isSelectingScreen = state == "selectScreen"
+            self?.message = state
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.selectScreen() }
     }
 
@@ -217,6 +221,7 @@ final class PickerModel: ObservableObject {
     }
 
     func toggleFreeze() {
+        guard !isSelectingScreen else { return }
         guard loupe != nil else { message = "pickFirst"; return }
         frozen.toggle()
         message = frozen ? "pinned" : "live"
@@ -225,12 +230,14 @@ final class PickerModel: ObservableObject {
 
     func selectScreen() {
         frozen = false
+        isSelectingScreen = true
+        message = "selectScreen"
         latestRaster = nil
         capture.selectScreen()
     }
 
     func sample() {
-        guard !frozen, let raster = latestRaster else { return }
+        guard !frozen, !isSelectingScreen, let raster = latestRaster else { return }
         let cursor = NSEvent.mouseLocation
         guard captureFrame.contains(cursor) else { message = "otherScreen"; return }
         guard !NSApp.windows.contains(where: { $0.isVisible && $0.frame.contains(cursor) }) else { return }
