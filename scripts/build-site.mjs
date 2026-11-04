@@ -48,6 +48,8 @@ else{
 const releases=all.filter(r=>!r.draft&&!r.prerelease&&r.published_at).sort((a,b)=>Date.parse(b.published_at)-Date.parse(a.published_at));
 if(!releases.length)throw new Error('A published stable release is required');
 const latest=releases[0];const zip=latest.assets.find(a=>/win-x64\.zip$/i.test(a.name));if(!zip)throw new Error('Missing Windows x64 release asset');
+const macRelease=all.filter(r=>!r.draft&&r.prerelease&&r.published_at).sort((a,b)=>Date.parse(b.published_at)-Date.parse(a.published_at)).find(r=>r.assets?.some(a=>/macos-universal\.zip$/i.test(a.name)));
+const macAsset=macRelease?.assets.find(a=>/macos-universal\.zip$/i.test(a.name));
 const anchor=release=>'release-'+String(release.tag_name).replace(/[^a-zA-Z0-9_-]/g,'-');
 const prefix=language=>language==='ko'?'':`/${language}`;
 const localizedName=(release,language)=>language==='zh-CN'&&release.tag_name==='v1.1.0'?'Pixel Pin v1.1.0 — 按你的习惯来':release.name||release.tag_name;
@@ -74,7 +76,7 @@ for(const language of languages){
  for(const page of ['home','changelog','terms','privacy','support']){
   const suffix=page==='home'?'/':`/${page}/`;
   const canonical=siteUrl+prefix(code)+suffix;
-  const data={base,language:code,siteUrl:escape(siteUrl),canonical:escape(canonical),home:base+prefix(code)+'/',changelog:base+prefix(code)+'/changelog/',download:safeUrl(zip.browser_download_url),version:escape(latest.tag_name),releaseName:escape(localizedName(latest,code)),size:(zip.size/1048576).toFixed(1),publishedIso:escape(latest.published_at),date:date(latest.published_at),releaseAnchor:anchor(latest),versionLinks,releaseCards,year:'2026',styleUrl:base+'/assets/'+cssName,scriptUrl:base+'/assets/'+jsName,previewImage:base+`/assets/preview-${code}-light.png`,settingsImage:base+`/assets/settings-${code}-light.png`};
+  const data={base,language:code,siteUrl:escape(siteUrl),canonical:escape(canonical),home:base+prefix(code)+'/',changelog:base+prefix(code)+'/changelog/',download:safeUrl(zip.browser_download_url),macDownload:safeUrl(macAsset?.browser_download_url||'https://github.com/Team-HJD-21/pixel-pin/releases'),macVersion:escape(macRelease?.tag_name||'Preview'),version:escape(latest.tag_name),releaseName:escape(localizedName(latest,code)),size:(zip.size/1048576).toFixed(1),publishedIso:escape(latest.published_at),date:date(latest.published_at),releaseAnchor:anchor(latest),versionLinks,releaseCards,year:'2026',styleUrl:base+'/assets/'+cssName,scriptUrl:base+'/assets/'+jsName,previewImage:base+`/assets/preview-${code}-light.png`,settingsImage:base+`/assets/settings-${code}-light.png`};
   data.languageName=language.name;data.languageControlLabel=tr('언어 선택',code)+' · '+language.name;
   data.languageOptions=languages.map(item=>`<a class="language-option" href="${base+prefix(item.code)+suffix}" lang="${item.code}" hreflang="${item.code}" data-language="${item.code}"${item.code===code?' aria-current="page"':''}>${item.name}</a>`).join('');
   data.alternateLinks=languages.map(item=>`<link rel="alternate" hreflang="${item.code}" href="${siteUrl+prefix(item.code)+suffix}">`).join('')+`<link rel="alternate" hreflang="x-default" href="${siteUrl+suffix}">`;
