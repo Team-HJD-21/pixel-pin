@@ -50,16 +50,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <key>NSScreenCaptureUsageDescription</key><string>Pixel Pin reads the pixel beneath your pointer to show its color and magnified view.</string>
 <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
 <key>SUFeedURL</key><string>https://github.com/Team-HJD-21/pixel-pin/releases/latest/download/appcast.xml</string>
+<key>SUEnableAutomaticChecks</key><false/>
+</dict></plist>
 PLIST
 if [[ -n "$SPARKLE_PUBLIC_KEY" ]]; then
   /usr/libexec/PlistBuddy -c "Add :SUPublicEDKey string $SPARKLE_PUBLIC_KEY" "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c "Add :SUEnableAutomaticChecks bool true" "$APP/Contents/Info.plist"
-else
-  /usr/libexec/PlistBuddy -c "Add :SUEnableAutomaticChecks bool false" "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :SUEnableAutomaticChecks true" "$APP/Contents/Info.plist"
 fi
-cat >> "$APP/Contents/Info.plist" <<'PLIST'
-</dict></plist>
-PLIST
 # Give this exact build a stable app identifier for Screen Recording consent.
 # Ad-hoc signatures are tied to the binary, so permission can still need to be
 # granted again after an app update. A Developer ID signature is required for
