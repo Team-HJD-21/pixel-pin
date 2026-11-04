@@ -17,6 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build universal macOS app
+        env:
+          MACOS_APP_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '1.2.1' }}
+          MACOS_BUILD_NUMBER: ${{ github.run_number }}
+          SPARKLE_ED_PUBLIC_KEY: ${{ github.ref_type == 'tag' && !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha') && vars.SPARKLE_ED_PUBLIC_KEY != '' && secrets.SPARKLE_ED_PRIVATE_KEY != '' && vars.SPARKLE_ED_PUBLIC_KEY || '' }}
         run: bash macos/build-app.sh
       - name: Verify app signature
         run: codesign --verify --deep --strict --verbose=2 'macos/build/Pixel Pin.app'
@@ -43,4 +47,30 @@ jobs:
 
             **Preview build:** This app uses an ad-hoc signature and is not Developer ID signed or notarized. macOS may block it on first launch. Screen Recording permission is required to sample pixels. Permission may need to be granted again after an app update.
           files: Pixel-Pin-${{ github.ref_name }}-macos-universal.zip
+      - name: Generate signed Sparkle appcast
+        id: appcast
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha')
+        env:
+          SPARKLE_ED_PUBLIC_KEY: ${{ vars.SPARKLE_ED_PUBLIC_KEY }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$SPARKLE_ED_PUBLIC_KEY" || -z "$SPARKLE_ED_PRIVATE_KEY" ]]; then
+            echo "Sparkle signing keys are not configured; skipping appcast generation."
+            exit 0
+          fi
+          tool="$(find macos/.build-arm64/artifacts -type f -name generate_appcast -print -quit)"
+          test -n "$tool"
+          mkdir -p macos/update-feed
+          cp "${{ steps.package.outputs.name }}" macos/update-feed/
+          printf '%s\n' "$SPARKLE_ED_PRIVATE_KEY" | "$tool" \
+            --ed-key-file - \
+            --download-url-prefix "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/" \
+            macos/update-feed
+          grep -q 'sparkle:edSignature=' macos/update-feed/appcast.xml
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+      - name: Attach Sparkle appcast to release
+        if: steps.appcast.outputs.enabled == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: macos/update-feed/appcast.xml
 

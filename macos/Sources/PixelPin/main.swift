@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import Sparkle
 import SwiftUI
 
 @main
@@ -9,7 +10,11 @@ struct PixelPinMacApp: App {
 
     var body: some Scene {
         WindowGroup("Pixel Pin") {
-            PickerView(model: model)
+            PickerView(
+                model: model,
+                updatesEnabled: delegate.canCheckForUpdates,
+                onCheckForUpdates: delegate.checkForUpdates
+            )
                 .frame(width: 410, height: 720)
                 .preferredColorScheme(model.theme.colorScheme)
                 .onAppear { delegate.keepWindowsFloating() }
@@ -18,6 +23,19 @@ struct PixelPinMacApp: App {
         .windowResizability(.contentSize)
         .commands {
             CommandGroup(replacing: .newItem) { }
+            CommandGroup(replacing: .appSettings) {
+                Button(model.language.text("설정…", "Settings…", "设置…")) {
+                    model.settingsOpen = true
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+                .keyboardShortcut(",", modifiers: [.control])
+            }
+            CommandGroup(after: .appInfo) {
+                Button(model.language.text("업데이트 확인…", "Check for Updates…", "检查更新…")) {
+                    delegate.checkForUpdates()
+                }
+                .disabled(!delegate.canCheckForUpdates)
+            }
             CommandMenu("Pixel Pin") {
                 Button(model.language.text("색상 복사", "Copy color", "复制颜色")) { model.copy(model.color) }
                     .keyboardShortcut("c", modifiers: [.command, .shift])
@@ -29,9 +47,32 @@ struct PixelPinMacApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let updaterController: SPUStandardUpdaterController?
+
+    override init() {
+        if Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String != nil,
+           Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String != nil {
+            updaterController = SPUStandardUpdaterController(
+                startingUpdater: false,
+                updaterDelegate: nil,
+                userDriverDelegate: nil
+            )
+        } else {
+            updaterController = nil
+        }
+        super.init()
+    }
+
+    var canCheckForUpdates: Bool { updaterController != nil }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        updaterController?.startUpdater()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { self.keepWindowsFloating() }
+    }
+
+    func checkForUpdates() {
+        updaterController?.checkForUpdates(nil)
     }
 
     func keepWindowsFloating() {
@@ -148,6 +189,7 @@ final class PickerModel: ObservableObject {
     private var timer: Timer?
     private var clickMonitor: Any?
     private var lastButtonDown = false
+    private let screenCaptureRequestKey = "didRequestScreenCaptureAccess"
 
     init() {
         clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in
@@ -157,9 +199,10 @@ final class PickerModel: ObservableObject {
             Task { @MainActor in self?.sample() }
         }
         timer?.tolerance = 0.015
-        // Never trigger Apple's permission prompt automatically on launch.
-        // macOS can keep this false until the user grants access and relaunches.
-        if !CGPreflightScreenCaptureAccess() { message = "permission" }
+        if !CGPreflightScreenCaptureAccess() {
+            message = "permission"
+            requestScreenCaptureAccessOnFirstLaunch()
+        }
     }
 
     deinit {
@@ -172,6 +215,18 @@ final class PickerModel: ObservableObject {
         frozen.toggle()
         message = frozen ? "pinned" : "live"
         if !frozen { sample() }
+    }
+
+    private func requestScreenCaptureAccessOnFirstLaunch() {
+        guard !UserDefaults.standard.bool(forKey: screenCaptureRequestKey) else { return }
+        UserDefaults.standard.set(true, forKey: screenCaptureRequestKey)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            guard let self, !CGPreflightScreenCaptureAccess() else { return }
+            if CGRequestScreenCaptureAccess() {
+                self.message = "live"
+                self.sample()
+            }
+        }
     }
 
     func sample() {
@@ -239,6 +294,8 @@ struct Palette {
 
 struct PickerView: View {
     @ObservedObject var model: PickerModel
+    let updatesEnabled: Bool
+    let onCheckForUpdates: () -> Void
     @Environment(\.colorScheme) private var systemColorScheme
     @State private var copied = false
     private var p: Palette { Palette(theme: model.theme, systemDark: systemColorScheme == .dark) }
@@ -300,6 +357,11 @@ struct PickerView: View {
                         Text(language.text("화면 RGB · 1픽셀", "Screen RGB · 1 pixel", "屏幕 RGB · 单个像素"))
                     }.font(.system(size: 10)).foregroundStyle(p.muted)
                     if model.message == "permission" {
+                        Text(language.text(
+                            "화면 색을 읽으려면 화면 기록 권한이 필요합니다. 허용 후에도 측정되지 않으면 앱을 다시 열어 주세요.",
+                            "Pixel Pin needs Screen Recording access to read screen colors. Reopen the app if sampling does not start after granting access.",
+                            "Pixel Pin 需要屏幕录制权限才能读取颜色。授权后若仍无法取色，请重新打开应用。"
+                        )).font(.system(size: 10)).foregroundStyle(p.muted).fixedSize(horizontal: false, vertical: true)
                         Button(language.text("화면 기록 설정 열기", "Open Screen Recording settings", "打开屏幕录制设置")) {
                             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") { NSWorkspace.shared.open(url) }
                         }.font(.system(size: 10, weight: .medium)).buttonStyle(.plain).foregroundStyle(Color.accentColor)
@@ -326,7 +388,9 @@ struct PickerView: View {
             footer
         }
         .background(p.background)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .background(WindowChromeConfigurator(color: p.background))
+        .toolbarBackground(p.background, for: .windowToolbar)
+        .toolbarBackground(.visible, for: .windowToolbar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { model.settingsOpen.toggle() } label: {
@@ -360,6 +424,17 @@ struct PickerView: View {
             }
             Text(language.text("CMYK는 인쇄 프로파일이 없는 참고값입니다.", "CMYK is a reference value without a print profile.", "CMYK 为未套用印刷配置文件的参考值。"))
                 .font(.system(size: 9)).foregroundStyle(p.muted)
+            settingRow(language.text("업데이트", "Updates", "更新")) {
+                Button(language.text("업데이트 확인", "Check now", "立即检查"), action: onCheckForUpdates)
+                    .disabled(!updatesEnabled)
+            }
+            if !updatesEnabled {
+                Text(language.text(
+                    "자동 업데이트는 서명 키를 등록한 다음 안정 버전부터 사용할 수 있습니다.",
+                    "Update checks will be enabled for stable releases after the signing key is configured.",
+                    "配置签名密钥后，稳定版即可启用自动更新。"
+                )).font(.system(size: 9)).foregroundStyle(p.muted).fixedSize(horizontal: false, vertical: true)
+            }
             HStack(spacing: 8) {
                 Button(language.text("최근 색상 지우기", "Clear recent colors", "清除最近颜色")) {
                     model.history = []
@@ -397,6 +472,28 @@ struct PickerView: View {
         let value = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         guard value.count == 6, let rgb = UInt32(value, radix: 16) else { return nil }
         return PixelColor(red: Int((rgb >> 16) & 255), green: Int((rgb >> 8) & 255), blue: Int(rgb & 255))
+    }
+}
+
+private struct WindowChromeConfigurator: NSViewRepresentable {
+    let color: Color
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        apply(to: view)
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        apply(to: view)
+    }
+
+    private func apply(to view: NSView) {
+        DispatchQueue.main.async {
+            guard let window = view.window else { return }
+            window.backgroundColor = NSColor(color)
+            window.titlebarAppearsTransparent = false
+        }
     }
 }
 
