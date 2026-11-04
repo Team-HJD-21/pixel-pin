@@ -41,8 +41,14 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      compiled_run: ${{ steps.previous.outputs.run_id }}
+      compiled_artifact: ${{ steps.previous.outputs.artifact }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
       - name: Validate shell scripts
         run: |
           bash -n macos/build-app.sh
@@ -62,6 +68,13 @@ jobs:
           (cd "$tool_dir" && sha256sum --check --ignore-missing actionlint_1.7.12_checksums.txt)
           tar -xzf "$tool_dir/actionlint_1.7.12_linux_amd64.tar.gz" -C "$tool_dir"
           "$tool_dir/actionlint" .github/workflows/macos-release.yml
+      # Wait on Linux so an earlier build keeps the macOS runner it needs.
+      - name: Find an already tested build of this commit
+        id: previous
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 macos/ci/compiled_inputs.py find --wait-seconds 480
   build:
     needs: validate
     runs-on: macos-15-intel
@@ -71,6 +84,9 @@ jobs:
       actions: read
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
       - name: Verify toolchain and script syntax
         run: |
           test -d "$DEVELOPER_DIR"
@@ -85,19 +101,13 @@ jobs:
             ~/Library/Caches/org.swift.swiftpm
             ~/Library/org.swift.swiftpm
           key: macos15-xcode16.4-swiftpm-${{ hashFiles('macos/Package.swift') }}
-      - name: Find an already tested build of this commit
-        id: previous
-        if: github.event_name != 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 macos/ci/compiled_inputs.py find --wait-seconds 480
       - name: Restore verified compilation inputs
         id: reuse
-        if: steps.previous.outputs.run_id != ''
+        if: needs.validate.outputs.compiled_run != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          PREVIOUS_RUN: ${{ steps.previous.outputs.run_id }}
-          INPUT_ARTIFACT: ${{ steps.previous.outputs.artifact }}
+          PREVIOUS_RUN: ${{ needs.validate.outputs.compiled_run }}
+          INPUT_ARTIFACT: ${{ needs.validate.outputs.compiled_artifact }}
         run: |
           input_dir="$RUNNER_TEMP/compiled-inputs"
           mkdir -p "$input_dir"
