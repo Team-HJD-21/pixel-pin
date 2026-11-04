@@ -48,4 +48,3 @@ codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP"
 echo "Created $APP"
 echo "This build uses an ad-hoc signature; Developer ID signing and notarization are still required for public distribution."
-
