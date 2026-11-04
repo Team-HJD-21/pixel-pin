@@ -161,6 +161,7 @@ jobs:
             - Automatically samples the full display under your pointer after Screen Recording authorization. The system picker remains available in settings.
             - HEX, RGB, swatches, and the magnifier share one sRGB pixel buffer.
             - Opens settings with Command-comma in a centered popup. Click outside or press Escape to close it.
+            - The close button minimizes to the Dock by default; Settings can change it to quit. Command-Q always quits.
             - Includes signed Sparkle updates with separate beta and stable feeds.
 
             macOS may still ask to renew direct screen access; the app cannot permanently suppress system permission prompts. Automatic sampling can be disabled in settings to use the system picker instead. For comparison, set Digital Color Meter to sRGB and its smallest aperture.

@@ -175,6 +175,9 @@ final class PickerModel: ObservableObject {
     @Published var frozen = false
     @Published var message = "Ready"
     @Published var settingsOpen = false
+    @Published var closeBehavior = WindowCloseBehavior(rawValue: UserDefaults.standard.string(forKey: "closeBehavior") ?? "minimize") ?? .minimize {
+        didSet { UserDefaults.standard.set(closeBehavior.rawValue, forKey: "closeBehavior") }
+    }
     @Published var automaticCapture = UserDefaults.standard.object(forKey: "automaticCapture") as? Bool ?? true {
         didSet {
             UserDefaults.standard.set(automaticCapture, forKey: "automaticCapture")
@@ -416,6 +419,7 @@ struct PickerView: View {
         }
         .background(p.background)
         .background(WindowChromeConfigurator(color: p.background))
+        .background(WindowCloseBehaviorHandler(behavior: model.closeBehavior))
         .toolbarBackground(p.background, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)
         .toolbar {
@@ -463,6 +467,11 @@ struct PickerView: View {
             settingRow(language.text("색상 포맷", "Color format", "颜色格式")) {
                 Picker("", selection: $model.format) { ForEach(ColorFormat.allCases) { Text($0.rawValue).tag($0) } }.labelsHidden().pickerStyle(.menu)
             }
+            settingRow(language.text("닫기 버튼 동작", "Close button", "关闭按钮")) {
+                Picker("", selection: $model.closeBehavior) {
+                    ForEach(WindowCloseBehavior.allCases) { Text($0.text(language)).tag($0) }
+                }.labelsHidden().pickerStyle(.menu)
+            }
             Text(language.text("CMYK는 인쇄 프로파일이 없는 참고값입니다.", "CMYK is a reference value without a print profile.", "CMYK 为未套用印刷配置文件的参考值。"))
                 .font(.system(size: 9)).foregroundStyle(p.muted)
             Toggle(language.text("시작 시 전체 화면 자동 측정", "Start screen sampling automatically", "自动开始全屏取色"), isOn: $model.automaticCapture)
@@ -487,7 +496,7 @@ struct PickerView: View {
                 }.buttonStyle(.plain)
                 Spacer(minLength: 0)
                 Button(language.text("기본값 복원", "Restore defaults", "恢复默认设置")) {
-                    model.theme = .system; model.language = .korean; model.format = .hex; model.automaticCapture = true
+                    model.theme = .system; model.language = .korean; model.format = .hex; model.closeBehavior = .minimize; model.automaticCapture = true
                 }.buttonStyle(.plain)
             }.font(.system(size: 9, weight: .medium)).foregroundStyle(Color.accentColor)
         }.padding(14).frame(width: 300, alignment: .leading).background(p.surface, in: RoundedRectangle(cornerRadius: 14))

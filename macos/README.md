@@ -19,6 +19,8 @@ ScreenCaptureKit produces an explicitly sRGB, SDR BGRA buffer. Both the sampled 
 
 The build script creates an ad-hoc signed `.app`. This does not remove macOS's first-open security warning; Developer ID signing and notarization require a paid Apple Developer Program membership. Ad-hoc signatures can also cause Screen Recording permission to be requested again after app updates.
 
+The red close button minimizes the app to the Dock by default. Change **Close button** to **Quit Pixel Pin** in Settings to quit instead. This preference persists between launches; `Command+Q` and the Quit menu command always quit the app.
+
 ## Sparkle updates
 
 Automatic checks and the in-app **Check for Updates** command become active after the one-time update key is configured. On a Mac, from the repository root, resolve Sparkle and create a key pair:
