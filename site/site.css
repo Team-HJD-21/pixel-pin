@@ -130,4 +130,6 @@ html[lang=zh-CN] .eyebrow{letter-spacing:.1em}
 .footer-company .company-logo{display:block;position:relative;width:220px;max-width:100%;aspect-ratio:497/510;overflow:hidden}.footer-company .company-logo img{position:absolute;left:-16.5%;top:-18.43%;width:131.187%;max-width:none;height:auto;max-height:none;object-fit:initial}@media(max-width:1100px){.footer-company .company-logo{width:190px}}
 .footer-company{grid-template-columns:140px minmax(0,1fr);gap:28px}.footer-company .company-logo{width:130px}@media(min-width:761px) and (max-width:1100px){.footer-company{grid-template-columns:140px minmax(0,1fr)}}@media(max-width:760px){.footer-company{grid-template-columns:1fr}.footer-company .company-logo{width:120px}}
 .site-footer>.footer-copyright{flex-basis:100%;width:100%;margin:0;text-align:left;color:var(--muted);font-size:11px}
+.footer-company .company-logo img{filter:brightness(0)}
+@media(prefers-color-scheme:dark){.footer-company .company-logo img{filter:none}}
 .secondary{background:var(--surface);color:var(--ink);border:1px solid var(--line)}.final-download-actions{justify-content:center;margin:20px auto 12px}@media(max-width:760px){.hero-actions{gap:10px}.hero-actions .button{min-height:46px;padding-inline:14px}.final-download-actions{flex-direction:column;align-items:stretch;max-width:260px}}
