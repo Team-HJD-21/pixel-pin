@@ -10,7 +10,7 @@ const entries = [
  ['사용 방법','How it works','使用方法'],['패치노트','Release notes','更新日志'],['다운로드','Download','下载'],['언어','Language','语言'],
  [' 업데이트',' is here',' 现已发布'],['마음에 든 색,','Find your color.','看中的颜色，'],['그대로 픽셀 핀.','Make it yours.','一键固定。'],
  ['화면 속 작은 색 하나까지.<br>커서로 찾고, 클릭으로 고정하고,<br>필요한 포맷으로 바로 복사하세요.','That perfect shade, down to the pixel.<br>Point to it, click to pin it,<br>and copy it in the format you use.','不错过屏幕上的每一抹颜色。<br>移动光标找到它，点击固定，<br>再用顺手的格式直接复制。'],
- ['Windows용 다운로드','Download for Windows','下载 Windows 版'],['새로운 소식','What’s new','查看更新'],
+ ['Windows용 다운로드','Download for Windows','下载 Windows 版'],['macOS 베타 다운로드','Download the macOS beta','下载 macOS 测试版'],['macOS {{macVersion}} · Apple silicon 및 Intel · 베타(미서명).','macOS {{macVersion}} · Apple silicon and Intel · unsigned beta.','macOS {{macVersion}} · Apple 芯片与 Intel · 未签名测试版。'],['macOS에서 화면을 캡처하려면 무엇이 필요한가요?','What does the Mac version need to capture my screen?','Mac 版取色需要什么权限？'],['Pixel Pin은 화면 픽셀을 읽기 위해 macOS의 화면 기록 권한이 필요합니다. 현재 베타 앱은 Apple 서명과 공증이 없어 처음 실행할 때 macOS 보안 경고가 나타날 수 있습니다. 공식 GitHub 릴리스에서만 다운로드하세요.','Pixel Pin needs Screen Recording permission to sample pixels. This beta hasn’t been signed or notarized by Apple, so macOS may warn you the first time you open it. Download it only from our official GitHub release.','Pixel Pin 需要“屏幕录制”权限才能读取像素。当前测试版尚未经过 Apple 签名和公证，首次打开时 macOS 可能会显示安全提示。请仅从官方 GitHub 发行页下载。'],['새로운 소식','What’s new','查看更新'],
  ['압축을 풀면 바로 실행. .NET 런타임 포함.','Unzip and run. .NET runtime included.','解压即可使用，已包含 .NET 运行时。'],
  ['작은 도구를 만드는 즐거움.','Small tools. A little more joy.','小工具，也能让工作更顺手。'],
  ['Pixel Pin 앱: 픽셀 확대경, 색상 코드와 복사 버튼, 최근 색상 목록','Pixel Pin with a pixel magnifier, color code, copy button, and recent colors','Pixel Pin 界面，包含像素放大镜、颜色代码、复制按钮和最近颜色'],

@@ -1,0 +1,40 @@
+name: Build Pixel Pin for macOS
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: ${{ startsWith(github.ref, 'refs/heads/feat/macos-pixel-pin') || startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal macOS app
+        run: bash macos/build-app.sh
+      - name: Package app
+        id: package
+        run: |
+          archive="Pixel-Pin-${GITHUB_REF_NAME//\//-}-macos-universal.zip"
+          ditto -c -k --sequesterRsrc --keepParent 'macos/build/Pixel Pin.app' "$archive"
+          echo "name=$archive" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: ${{ steps.package.outputs.name }}
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish GitHub release asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Pixel Pin for macOS ${{ github.ref_name }}
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          body: |
+            Universal app for Apple silicon and Intel Macs.
+
+            **Preview build:** This app is not signed or notarized yet. macOS may block it on first launch. Screen Recording permission is required to sample pixels.
+          files: Pixel-Pin-${{ github.ref_name }}-macos-universal.zip
