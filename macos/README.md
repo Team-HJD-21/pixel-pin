@@ -24,10 +24,11 @@ Automatic checks and the in-app **Check for Updates** command become active afte
 ```sh
 cd macos
 swift build --configuration release --triple arm64-apple-macosx13.0 --build-path .build-arm64
+.build-arm64/artifacts/sparkle/Sparkle/bin/generate_keys
 .build-arm64/artifacts/sparkle/Sparkle/bin/generate_keys -x "$HOME/pixelpin-sparkle-private-key.txt"
 ```
 
-The tool prints the public key and saves the private key to that file. In GitHub, open **Settings → Secrets and variables → Actions**. Add the printed public key as the repository variable `SPARKLE_ED_PUBLIC_KEY`, and the private key file contents as the repository secret `SPARKLE_ED_PRIVATE_KEY`. Keep a secure backup of the private key and never commit it. Stable tagged releases then generate and attach a signed `appcast.xml`; builds without both keys keep update checking disabled.
+The first key command creates a key pair in the login Keychain and prints the public key. The second exports that existing private key to the file; `-x` does not create a missing key. In GitHub, open **Settings → Secrets and variables → Actions**. Add the printed public key as the repository variable `SPARKLE_ED_PUBLIC_KEY`, and the private key file contents as the repository secret `SPARKLE_ED_PRIVATE_KEY`. Keep a secure backup of the private key and never commit it. Stable tagged releases then generate and attach a signed `appcast.xml`; builds without both keys keep update checking disabled.
 
 This Windows checkout cannot validate a macOS runtime, framework loading, or the permission flow.
 
