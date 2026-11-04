@@ -192,9 +192,12 @@ final class PickerModel: ObservableObject {
         let left = min(max(px - 8, 0), max(0, width - 17))
         let top = min(max(py - 8, 0), max(0, height - 17))
         let captureRect = CGRect(x: left, y: top, width: min(17, width), height: min(17, height))
-        guard let image = CGDisplayCreateImageForRect(display, captureRect),
-              let bitmap = NSBitmapImageRep(cgImage: image),
-              let nsColor = bitmap.colorAt(x: min(max(px - left, 0), bitmap.pixelsWide - 1), y: min(max(py - top, 0), bitmap.pixelsHigh - 1))?.usingColorSpace(.deviceRGB) else {
+        guard let image = CGDisplayCreateImage(display, rect: captureRect) else {
+            message = "permission"
+            return
+        }
+        let bitmap = NSBitmapImageRep(cgImage: image)
+        guard let nsColor = bitmap.colorAt(x: min(max(px - left, 0), bitmap.pixelsWide - 1), y: min(max(py - top, 0), bitmap.pixelsHigh - 1))?.usingColorSpace(.deviceRGB) else {
             message = "permission"
             return
         }
