@@ -72,8 +72,8 @@ if [[ -n "$SPARKLE_PUBLIC_KEY" ]]; then
   /usr/libexec/PlistBuddy -c "Add :SUVerifyUpdateBeforeExtraction bool true" "$APP/Contents/Info.plist"
 fi
 /usr/bin/plutil -lint "$APP/Contents/Info.plist"
-lipo -verify_arch arm64 x86_64 "$APP/Contents/MacOS/PixelPin"
-lipo -verify_arch arm64 x86_64 "$APP/Contents/Frameworks/Sparkle.framework/Sparkle"
+lipo "$APP/Contents/MacOS/PixelPin" -verify_arch arm64 x86_64
+lipo "$APP/Contents/Frameworks/Sparkle.framework/Sparkle" -verify_arch arm64 x86_64
 # Give this exact build a stable app identifier for Screen Recording consent.
 # Ad-hoc signatures are tied to the binary, so permission can still need to be
 # granted again after an app update. A Developer ID signature is required for
