@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {selectPublicReleases} from './release-selection.mjs';
+const asset = name => ({name, browser_download_url: `https://example.com/${name}`});
+const win = {tag_name: 'v1.1.1', published_at: '2026-11-01T00:00:00Z', assets: [asset('Pixel-Pin-v1.1.1-win-x64.zip')]};
+const mac = {tag_name: 'v1.2.1', published_at: '2026-11-05T00:00:00Z', assets: [asset('Pixel-Pin-v1.2.1-macos-universal.zip'), asset('Pixel-Pin-v1.2.1-macos-universal.dmg')]};
+const beta = {...mac, tag_name: 'v1.3.0-beta.1', prerelease: true, published_at: '2026-11-06T00:00:00Z'};
+const draft = {...mac, tag_name: 'v1.4.0', draft: true};
+const selection = selectPublicReleases([draft, beta, mac, win]);
+assert.equal(selection.windows.tag_name, 'v1.1.1');
+assert.equal(selection.mac.tag_name, 'v1.2.1');
+assert.match(selection.macAsset.name, /\.dmg$/);
+assert.deepEqual(selection.stable.map(r => r.tag_name), ['v1.2.1', 'v1.1.1']);
+assert.equal(selectPublicReleases([win, beta]).mac, undefined, 'Never promote a beta download on the stable site');
+assert.throws(() => selectPublicReleases([mac, beta]), /Windows/);
+console.log('PASS: platform-specific stable releases, DMG preference, draft/beta exclusion and Windows download preservation.');

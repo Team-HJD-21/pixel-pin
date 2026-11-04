@@ -36,6 +36,7 @@ jobs:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}
       - name: Verify built pages
         run: |
+          node scripts/test-release-selection.mjs
           node scripts/check-site.mjs
           node scripts/test-site.mjs
           node scripts/check-policies.mjs

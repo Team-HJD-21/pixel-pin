@@ -1,5 +1,15 @@
 // Editorial copy, written for each language rather than generated in the browser.
 const entries = [
+ ['Pixel Pin v1.2.1 — macOS 정식 출시','Pixel Pin v1.2.1 — Now on Mac','Pixel Pin v1.2.1 — Mac 版正式发布'],
+ ['준비 중','Coming soon','即将推出'],
+ ['macOS용 다운로드','Download for macOS','下载 macOS 版'],
+ ['macOS 13 이상 · {{macVersion}} · Apple silicon 및 Intel.','macOS 13 or later · {{macVersion}} · Apple silicon and Intel.','macOS 13 及以上 · {{macVersion}} · Apple 芯片与 Intel。'],
+ ['Windows와 macOS를 위한 작은 컬러 피커. 화면의 색을 고르고, 고정하고, 원하는 포맷으로 복사하세요.','A small color picker for Windows and macOS. Find a screen color, pin it, and copy it in the format you use.','适用于 Windows 和 macOS 的轻巧取色工具。找到心仪的颜色，点击固定，再按需要的格式复制。'],
+ ['작고 가볍게','Small by design','轻巧省心'],
+ ['가입은 필요 없습니다. Windows는 ZIP을 풀어 PixelPin.exe를 실행하세요. macOS는 DMG를 열어 Pixel Pin을 응용 프로그램 폴더로 옮긴 뒤 실행하세요. 업데이트도 이 폴더에서 사용할 수 있습니다.','No account needed. On Windows, unzip the download and run PixelPin.exe. On macOS, open the DMG, drag Pixel Pin to Applications, and launch it from there. Keeping the app in Applications also enables updates.','无需注册。Windows 用户解压后运行 PixelPin.exe 即可。macOS 用户请打开 DMG，将 Pixel Pin 拖入“应用程序”文件夹，再从那里启动。将应用保留在该文件夹中，也能正常接收更新。'],
+ ['Pixel Pin은 화면 픽셀을 읽기 위해 macOS의 화면 기록 권한이 필요합니다. 현재 배포본은 Apple Developer ID 서명·공증이 없어 처음 실행할 때 macOS 보안 경고가 나타날 수 있습니다. 같은 앱 빌드에서도 권한을 허용하지 않으면 측정할 수 없으며, 업데이트 후에는 다시 허용해야 할 수 있습니다. 공식 GitHub 릴리스에서만 다운로드하세요.','Pixel Pin needs Screen Recording permission to read screen pixels. The current release is not Developer ID signed or notarized, so macOS may show a security warning when you first open it. Sampling requires your permission, and an update may require you to grant access again. Download only from our official GitHub releases.','Pixel Pin 需要“屏幕录制”权限才能读取像素。当前发行版未经 Apple Developer ID 签名和公证，首次打开时 macOS 可能会显示安全提示。授予权限后才能取色，更新后也可能需要重新授权。请仅从官方 GitHub 发行页下载。'],
+ ['설정과 최근 색상은 기기에만 저장됩니다. Windows는 %LOCALAPPDATA%\\PixelPin 폴더, macOS는 앱의 로컬 환경설정을 사용합니다. 화면 이미지와 색상 기록은 서버로 전송하지 않으며, 이 사이트에도 분석 추적 코드를 넣지 않았습니다.','Settings and recent colors stay on your device. Windows uses the %LOCALAPPDATA%\\PixelPin folder; macOS uses the app’s local preferences. Screen images and color history are not uploaded, and this website has no analytics tracking.','设置和最近颜色仅保存在本机。Windows 使用 %LOCALAPPDATA%\\PixelPin 文件夹，macOS 使用应用的本地偏好设置。屏幕图像和颜色记录不会上传，本站也没有分析追踪代码。'],
+ ['macOS에서는 Ctrl 대신 ⌘ 키를 사용합니다. 설정은 ⌘ + ,로 열 수 있습니다.','On macOS, use ⌘ instead of Ctrl. Open Settings with ⌘ + , .','macOS 用户请将 Ctrl 换成 ⌘，按 ⌘ + , 可打开设置。'],
  ['언어 선택','Choose language','选择语言'],
  ['Pixel Pin — 마음에 든 색, 그대로.','Pixel Pin — Pick it. Pin it.','Pixel Pin — 看中的颜色，一键固定。'],
  ['Windows를 위한 작은 컬러 피커. 화면의 픽셀 색상을 고르고, 고정하고, 원하는 포맷으로 복사하세요.','A clean little color picker for Windows. Find a screen color, pin it, and copy it in the format you need.','简洁好用的 Windows 取色工具。找到屏幕上的颜色，点击固定，再按需要的格式复制。'],

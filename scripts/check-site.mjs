@@ -49,6 +49,16 @@ for(const code of ['ko','en','zh-CN']){
  for(const mode of ['light','dark'])for(const kind of ['preview','settings'])await stat(path.join(root,'assets',`${kind}-${code}-${mode}.png`));
 }
 const release=JSON.parse(await readFile(path.join(root,'release-data.json'),'utf8'));assert(release.releases.length>0);assert.match(release.download,/^https:\/\/github\.com\/Team-HJD-21\/pixel-pin\/releases\/download\//i);
+if(release.mac){
+ assert.match(release.mac.version,/^v\d+\.\d+\.\d+$/,'Mac download must be a stable version');
+ assert.match(release.mac.download,/macos-universal\.(dmg|zip)$/i);
+ for(const prefix of ['', 'en/', 'zh-CN/']){
+  const html=await readFile(path.join(root,prefix,'index.html'),'utf8');
+  const buttons=[...html.matchAll(/<a class="[^"]*platform-macos" href="([^"]+)">([^<]+)<\/a>/g)];
+  assert.equal(buttons.length,2,'Both Mac download locations must remain available');
+  for(const button of buttons){assert.equal(button[1],release.mac.download);assert(!/beta|베타|测试版/i.test(button[2]));}
+ }
+}
 const css=await readFile(path.join(root,'assets/site.css'),'utf8');assert(css.includes('@media(max-width:760px)'));assert(css.includes('prefers-reduced-motion'));
 assert(!css.includes('html[data-theme='),'Sample theme must not target the website root');
 assert(css.includes('[data-preview-surface][data-preview-theme=dark]'),'Missing scoped dark sample palette');

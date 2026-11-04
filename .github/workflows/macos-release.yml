@@ -11,6 +11,7 @@ on:
       - 'macos/Package.*'
       - 'macos/*.sh'
       - 'macos/ci/**'
+      - 'macos/installer/**'
       - 'assets/app-icon.png'
       - '.github/workflows/macos-release.yml'
   pull_request:
@@ -22,6 +23,7 @@ on:
       - 'macos/Package.*'
       - 'macos/*.sh'
       - 'macos/ci/**'
+      - 'macos/installer/**'
       - 'assets/app-icon.png'
       - '.github/workflows/macos-release.yml'
   workflow_dispatch:
@@ -55,7 +57,9 @@ jobs:
           bash -n macos/make-appcast.sh
           bash -n macos/make-dmg.sh
       - name: Test compiled-input reuse safety
-        run: python3 -m unittest discover -s macos/ci -v
+        run: |
+          python3 -m py_compile macos/installer/layout.py
+          python3 -m unittest discover -s macos/ci -v
       - name: Validate workflow with pinned actionlint
         env:
           GH_TOKEN: ${{ github.token }}
@@ -92,6 +96,7 @@ jobs:
           test -d "$DEVELOPER_DIR"
           xcodebuild -version
           swift --version
+          swiftc -parse macos/installer/background.swift
           for script in macos/build-app.sh macos/make-appcast.sh macos/make-dmg.sh; do bash -n "$script"; done
           swift package --package-path macos dump-package > /dev/null
       - name: Restore Swift package download cache
@@ -177,6 +182,7 @@ jobs:
         env:
           DMG: ${{ steps.config.outputs.dmg }}
         run: |
+          python3 -m pip install --disable-pip-version-check --require-hashes -r macos/installer/requirements.txt
           bash macos/make-dmg.sh "$PWD/$DMG"
           shasum -a 256 "$DMG" > "$DMG.sha256"
       - name: Snapshot tested compilation inputs
@@ -208,6 +214,7 @@ jobs:
             ${{ steps.config.outputs.dmg }}
             ${{ steps.config.outputs.dmg }}.sha256
             macos/update-feed/appcast.xml
+            macos/build/installer-preview.png
           if-no-files-found: error
           retention-days: 14
           overwrite: true
@@ -222,6 +229,7 @@ jobs:
             Universal app for Apple silicon and Intel Macs.
 
             - Includes a DMG installer: drag Pixel Pin to Applications, then open the installed app.
+            - A branded installer window includes a drag direction and installation guidance in Korean, English and Simplified Chinese.
             - Automatically samples the full display under your pointer after Screen Recording authorization. The system picker remains available in settings.
             - Fixes permission recovery: retries after returning from System Settings, attempts ScreenCaptureKit even when preflight is stale, and shows capture diagnostics.
             - HEX, RGB, swatches, and the magnifier share one sRGB pixel buffer.
@@ -249,3 +257,20 @@ jobs:
               --title "Pixel Pin $FEED_TAG feed" --notes 'Automatically maintained macOS update feed. Download the app from a versioned release.'
           fi
           gh release upload "$FEED_TAG" macos/update-feed/appcast.xml --repo "$GITHUB_REPOSITORY" --clobber
+          # Promote existing beta installations onto the stable channel as well.
+          if [[ "$FEED_TAG" == macos-updates ]] && gh release view macos-beta-updates --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload macos-beta-updates macos/update-feed/appcast.xml --repo "$GITHUB_REPOSITORY" --clobber
+          fi
+  refresh-site:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Rebuild website after publishing the stable Mac assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main

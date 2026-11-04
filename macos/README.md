@@ -13,6 +13,8 @@ open "build/Pixel Pin.app"
 
 For a fresh installation, download the DMG, open it, and drag **Pixel Pin.app** onto **Applications**. Eject the image and launch the installed app from Applications. Updates are disabled when running the app from Downloads, a mounted DMG, or another temporary location; the app shows installation guidance there. ZIP archives remain available for Sparkle's signed updates.
 
+The DMG has a fixed Finder icon layout, a Retina installer background and installation instructions in Korean, English and Simplified Chinese. These are generated without Finder automation. Creating the DMG locally also requires `python3 -m pip install --require-hashes -r installer/requirements.txt`; CI installs these checksum-pinned dependencies automatically. The final mounted image is checked for icon positions, the background alias and app signature.
+
 By default, authorize Screen Recording in System Settings and the app automatically samples the entire display under the pointer, switching displays as the pointer moves. macOS may independently request renewed direct-capture access; the app cannot suppress these OS prompts. Disable **Start screen sampling automatically** in Settings to use the system picker on macOS 14+, or use **Choose a screen** for the current session. The app continues to use ScreenCaptureKit and does not capture audio.
 
 ScreenCaptureKit produces an explicitly sRGB, SDR BGRA buffer. Both the sampled RGB/HEX value and the 17 × 17 magnifier use those same bytes, avoiding a second display-profile conversion. Compare with Digital Color Meter's **Display in sRGB** mode; native display-profile numbers can differ. HDR luminance outside SDR sRGB is not preserved. Sampling pauses over the app's own windows. Clicking elsewhere pins the color; clicking again resumes. Open the centered Settings popup with `Command+,`; click outside it or press Escape to dismiss it.
@@ -37,6 +39,8 @@ swift build --configuration release --triple arm64-apple-macosx13.0 --build-path
 The first key command creates a key pair in the login Keychain and prints the public key. The second exports that existing private key to the file; `-x` does not create a missing key. In GitHub, open **Settings → Secrets and variables → Actions**. Add the printed public key as the repository variable `SPARKLE_ED_PUBLIC_KEY`, and the private key file contents as the repository secret `SPARKLE_ED_PRIVATE_KEY`. Keep a secure backup of the private key and never commit it. Tagged releases require both keys and validate signed archives before publishing.
 
 Beta apps use the permanent `macos-beta-updates` release asset feed; stable apps use `macos-updates`. Each versioned release also includes its appcast and archive SHA-256. macOS releases do not replace the repository's Windows latest-release link. The update key must be included when the app is built, so older preview builds without it need one manual installation of a signed-update-enabled build. Sparkle signing is separate from Apple Developer ID signing and notarization.
+
+Stable releases are also published to the beta update feed so existing beta installations can move to the stable app and its stable feed. The website selects stable Windows and macOS downloads independently and prefers the Mac DMG.
 
 ## CI checks
 
