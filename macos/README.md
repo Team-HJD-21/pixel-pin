@@ -11,7 +11,9 @@ bash ./build-app.sh
 open "build/Pixel Pin.app"
 ```
 
-On first launch, allow **Screen Recording** when macOS asks. If access was denied earlier, use the permission button in the app to open System Settings, enable Pixel Pin, then reopen the app. The app captures the pixel under the pointer and a 17 × 17 magnified area, using sRGB output; it pauses sampling while the pointer is over its own window. Clicking elsewhere pins the current color; clicking again resumes live sampling. Open Settings from the app menu with `Control+,`.
+On macOS 14+, choose a display through the system screen picker when the app opens. **Choose a screen** reopens the picker to change the display or restart capture after stopping it in macOS. The app uses ScreenCaptureKit without the deprecated direct capture APIs. On macOS 13, allow Screen Recording in System Settings instead; that version does not provide the system picker.
+
+ScreenCaptureKit produces an explicitly sRGB, SDR BGRA buffer. Both the sampled RGB/HEX value and the 17 × 17 magnifier use those same bytes, avoiding a second display-profile conversion. Compare with Digital Color Meter's **Display in sRGB** mode; native display-profile numbers can differ. HDR luminance outside SDR sRGB is not preserved. Sampling pauses over the app's own windows. Clicking elsewhere pins the color; clicking again resumes. Open Settings from the app menu with `Control+,`.
 
 The build script creates an ad-hoc signed `.app`. This does not remove macOS's first-open security warning; Developer ID signing and notarization require a paid Apple Developer Program membership. Ad-hoc signatures can also cause Screen Recording permission to be requested again after app updates.
 

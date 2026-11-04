@@ -16,6 +16,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Verify sRGB sampling and loupe consistency
+        run: swift test --package-path macos
       - name: Build universal macOS app
         env:
           MACOS_APP_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '1.2.1' }}
@@ -44,6 +46,12 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
           body: |
             Universal app for Apple silicon and Intel Macs.
+
+            - Uses ScreenCaptureKit and the macOS screen picker on macOS 14+ instead of legacy direct capture.
+            - HEX, RGB, swatches, and the magnifier now share one explicitly sRGB capture buffer.
+            - Corrects the magnifier marker near display edges.
+
+            On macOS 14+, choose the display to sample in the system picker when opening the app. Use **Choose a screen** to switch displays or restart a stopped capture. macOS 13 uses ScreenCaptureKit with Screen Recording permission.
 
             **Preview build:** This app uses an ad-hoc signature and is not Developer ID signed or notarized. macOS may block it on first launch. Screen Recording permission is required to sample pixels. Permission may need to be granted again after an app update.
           files: Pixel-Pin-${{ github.ref_name }}-macos-universal.zip

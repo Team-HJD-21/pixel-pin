@@ -18,6 +18,7 @@ let package = Package(
                 .linkedFramework("CoreGraphics"),
                 .linkedFramework("ScreenCaptureKit")
             ]
-        )
+        ),
+        .testTarget(name: "PixelPinTests", dependencies: ["PixelPin"])
     ]
 )

@@ -189,7 +189,10 @@ final class PickerModel: ObservableObject {
     private var timer: Timer?
     private var clickMonitor: Any?
     private var lastButtonDown = false
-    private let screenCaptureRequestKey = "didRequestScreenCaptureAccess"
+    private let capture = ScreenCaptureEngine()
+    private var latestRaster: PixelRaster?
+    private var captureFrame = CGRect.zero
+    @Published var markerOffset = CGSize.zero
 
     init() {
         clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in
@@ -199,10 +202,13 @@ final class PickerModel: ObservableObject {
             Task { @MainActor in self?.sample() }
         }
         timer?.tolerance = 0.015
-        if !CGPreflightScreenCaptureAccess() {
-            message = "permission"
-            requestScreenCaptureAccessOnFirstLaunch()
+        capture.onFrame = { [weak self] raster, frame in
+            self?.latestRaster = raster
+            self?.captureFrame = frame
+            self?.sample()
         }
+        capture.onState = { [weak self] state in self?.message = state }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.selectScreen() }
     }
 
     deinit {
@@ -217,54 +223,29 @@ final class PickerModel: ObservableObject {
         if !frozen { sample() }
     }
 
-    private func requestScreenCaptureAccessOnFirstLaunch() {
-        guard !UserDefaults.standard.bool(forKey: screenCaptureRequestKey) else { return }
-        UserDefaults.standard.set(true, forKey: screenCaptureRequestKey)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-            guard let self, !CGPreflightScreenCaptureAccess() else { return }
-            if CGRequestScreenCaptureAccess() {
-                self.message = "live"
-                self.sample()
-            }
-        }
+    func selectScreen() {
+        frozen = false
+        latestRaster = nil
+        capture.selectScreen()
     }
 
     func sample() {
-        guard !frozen else { return }
-        guard CGPreflightScreenCaptureAccess() else {
-            message = "permission"
-            return
-        }
+        guard !frozen, let raster = latestRaster else { return }
         let cursor = NSEvent.mouseLocation
-        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(cursor) }),
-              let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return }
+        guard captureFrame.contains(cursor) else { message = "otherScreen"; return }
         guard !NSApp.windows.contains(where: { $0.isVisible && $0.frame.contains(cursor) }) else { return }
-
-        let display = CGDirectDisplayID(number.uint32Value)
-        guard let displayImage = CGDisplayCreateImage(display) else { return }
-        guard screen.frame.width > 0, screen.frame.height > 0 else { return }
-        // Map AppKit's logical screen coordinates to the actual captured pixel
-        // dimensions. This also handles Retina and mixed-scale displays.
-        let normalizedX = (cursor.x - screen.frame.minX) / screen.frame.width
-        let normalizedY = (screen.frame.maxY - cursor.y) / screen.frame.height
-        let px = min(max(Int((normalizedX * CGFloat(displayImage.width)).rounded(.down)), 0), displayImage.width - 1)
-        let py = min(max(Int((normalizedY * CGFloat(displayImage.height)).rounded(.down)), 0), displayImage.height - 1)
-        let bitmap = NSBitmapImageRep(cgImage: displayImage)
-        guard let nsColor = bitmap.colorAt(x: px, y: py)?.usingColorSpace(NSColorSpace.sRGB) else { return }
-        color = PixelColor(
-            red: Self.byte(nsColor.redComponent),
-            green: Self.byte(nsColor.greenComponent),
-            blue: Self.byte(nsColor.blueComponent)
-        )
-        let left = min(max(px - 8, 0), max(0, displayImage.width - 17))
-        let top = min(max(py - 8, 0), max(0, displayImage.height - 17))
-        let cropRect = CGRect(x: left, y: top, width: min(17, displayImage.width), height: min(17, displayImage.height))
-        loupe = displayImage.cropping(to: cropRect)
+        let image = raster.image
+        let x = min(max(Int((cursor.x - captureFrame.minX) / captureFrame.width * CGFloat(image.width)), 0), image.width - 1)
+        let y = min(max(Int((captureFrame.maxY - cursor.y) / captureFrame.height * CGFloat(image.height)), 0), image.height - 1)
+        guard let sampled = raster.color(x: x, y: y) else { return }
+        color = sampled
+        let left = max(0, min(x - 8, image.width - min(17, image.width)))
+        let top = max(0, min(y - 8, image.height - min(17, image.height)))
+        let width = min(17, image.width), height = min(17, image.height)
+        loupe = image.cropping(to: CGRect(x: left, y: top, width: width, height: height))
+        markerOffset = CGSize(width: (CGFloat(x - left) + 0.5) / CGFloat(width) * 132 - 66,
+                              height: (CGFloat(y - top) + 0.5) / CGFloat(height) * 132 - 66)
         message = "live"
-    }
-
-    private static func byte(_ component: CGFloat) -> Int {
-        Int((min(max(component, 0), 1) * 255).rounded())
     }
 
     func copy(_ value: PixelColor) {
@@ -320,7 +301,7 @@ struct PickerView: View {
                         if let loupe = model.loupe {
                             Image(decorative: loupe, scale: 1).interpolation(.none).resizable().aspectRatio(contentMode: .fill)
                                 .frame(width: 132, height: 132).clipShape(RoundedRectangle(cornerRadius: 14))
-                                .overlay { Rectangle().stroke(p.ink.opacity(0.75), lineWidth: 1).frame(width: 9, height: 9) }
+                                .overlay { Rectangle().stroke(p.ink.opacity(0.75), lineWidth: 1).frame(width: 9, height: 9).offset(model.markerOffset) }
                         } else {
                             RoundedRectangle(cornerRadius: 14).fill(p.tint).frame(width: 132, height: 132)
                                 .overlay(Image(systemName: "viewfinder").font(.system(size: 26)).foregroundStyle(p.muted))
@@ -356,15 +337,18 @@ struct PickerView: View {
                         Spacer()
                         Text(language.text("화면 RGB · 1픽셀", "Screen RGB · 1 pixel", "屏幕 RGB · 单个像素"))
                     }.font(.system(size: 10)).foregroundStyle(p.muted)
-                    if model.message == "permission" {
+                    Button(language.text("측정할 화면 선택", "Choose a screen", "选择取色屏幕")) { model.selectScreen() }
+                        .font(.system(size: 11, weight: .medium)).buttonStyle(.plain).foregroundStyle(Color.accentColor)
+                    if model.message == "selectScreen" || model.message == "captureError" {
                         Text(language.text(
-                            "화면 색을 읽으려면 화면 기록 권한이 필요합니다. 허용 후에도 측정되지 않으면 앱을 다시 열어 주세요.",
-                            "Pixel Pin needs Screen Recording access to read screen colors. Reopen the app if sampling does not start after granting access.",
-                            "Pixel Pin 需要屏幕录制权限才能读取颜色。授权后若仍无法取色，请重新打开应用。"
+                            "macOS 화면 선택 창에서 측정할 디스플레이를 선택해 주세요. 선택을 취소했다면 위 버튼으로 다시 열 수 있습니다.",
+                            "Choose the display to sample in the macOS screen picker. Use the button above to reopen it if you cancelled.",
+                            "请在 macOS 屏幕选择器中选择要取色的显示器。若已取消，可点击上方按钮重新选择。"
                         )).font(.system(size: 10)).foregroundStyle(p.muted).fixedSize(horizontal: false, vertical: true)
-                        Button(language.text("화면 기록 설정 열기", "Open Screen Recording settings", "打开屏幕录制设置")) {
-                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") { NSWorkspace.shared.open(url) }
-                        }.font(.system(size: 10, weight: .medium)).buttonStyle(.plain).foregroundStyle(Color.accentColor)
+                        if #unavailable(macOS 14.0) {
+                            Link(language.text("화면 기록 설정 열기", "Open Screen Recording settings", "打开屏幕录制设置"),
+                                 destination: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+                        }
                     }
 
                     HStack {
@@ -460,6 +444,9 @@ struct PickerView: View {
 
     private var statusText: String {
         switch model.message {
+        case "selectScreen": return language.text("측정할 화면을 선택해 주세요", "Choose a screen to sample", "请选择取色屏幕")
+        case "captureError": return language.text("화면 캡처가 중단되었습니다. 화면을 다시 선택해 주세요", "Capture stopped. Choose a screen again.", "取色已中断，请重新选择屏幕")
+        case "otherScreen": return language.text("선택한 화면으로 커서를 이동하세요", "Move the pointer to the selected display", "请将光标移至所选屏幕")
         case "permission": return language.text("화면 기록 권한을 허용해 주세요", "Allow Screen Recording access", "请允许屏幕录制权限")
         case "pinned": return language.text("색상 고정됨", "Color pinned", "颜色已固定")
         case "copied": return language.text("클립보드에 복사됨", "Copied to clipboard", "已复制到剪贴板")
