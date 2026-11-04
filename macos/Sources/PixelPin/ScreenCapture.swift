@@ -129,9 +129,11 @@ final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelegate {
         generation += 1
         let request = generation
         do {
-            if let stream { try? await stream.stopCapture() }
-            guard generation == request else { return }
+            let previous = stream
             self.stream = nil
+            onState?("connecting")
+            if let previous { try? await previous.stopCapture() }
+            guard generation == request else { return }
             screenFrame = frame
             let config = SCStreamConfiguration()
             config.width = width
