@@ -175,6 +175,7 @@ final class PickerModel: ObservableObject {
     @Published var frozen = false
     @Published var message = "Ready"
     @Published var settingsOpen = false
+    @Published var captureErrorDetail = ""
     @Published var closeBehavior = WindowCloseBehavior(rawValue: UserDefaults.standard.string(forKey: "closeBehavior") ?? "minimize") ?? .minimize {
         didSet { UserDefaults.standard.set(closeBehavior.rawValue, forKey: "closeBehavior") }
     }
@@ -202,6 +203,7 @@ final class PickerModel: ObservableObject {
     private var latestRaster: PixelRaster?
     private var captureFrame = CGRect.zero
     private var isSelectingScreen = false
+    private var awaitingCaptureSettings = false
     @Published var markerOffset = CGSize.zero
 
     init() {
@@ -224,8 +226,11 @@ final class PickerModel: ObservableObject {
         capture.onState = { [weak self] state in
             self?.isSelectingScreen = state == "selectScreen" || state == "connecting"
             if state == "captureError" || state == "permission" || state == "connecting" { self?.latestRaster = nil }
+            if state == "captureError" || state == "permission" { self?.loupe = nil }
+            if state == "live" { self?.captureErrorDetail = "" }
             self?.message = state
         }
+        capture.onError = { [weak self] in self?.captureErrorDetail = $0 }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.startCapture() }
     }
 
@@ -236,7 +241,8 @@ final class PickerModel: ObservableObject {
 
     func toggleFreeze() {
         guard !isSelectingScreen, !settingsOpen else { return }
-        guard loupe != nil else { message = "pickFirst"; return }
+        // Clicking a system permission dialog must not overwrite the recovery state.
+        guard loupe != nil, latestRaster != nil else { return }
         frozen.toggle()
         message = frozen ? "pinned" : "live"
         if !frozen { sample() }
@@ -250,12 +256,26 @@ final class PickerModel: ObservableObject {
         capture.selectScreen()
     }
 
-    func startCapture() {
+    func startCapture(requestPermission: Bool = false) {
         frozen = false
         isSelectingScreen = true
         latestRaster = nil
-        if automaticCapture { capture.startAutomatically() }
+        if automaticCapture { capture.startAutomatically(requestPermission: requestPermission) }
         else { selectScreen() }
+    }
+
+    func openCaptureSettings() {
+        awaitingCaptureSettings = true
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+    }
+
+    func resumeAfterSettings() {
+        if awaitingCaptureSettings {
+            awaitingCaptureSettings = false
+            startCapture()
+        } else if automaticCapture && message == "permission" && CGPreflightScreenCaptureAccess() {
+            startCapture()
+        }
     }
 
     func sample() {
@@ -382,10 +402,17 @@ struct PickerView: View {
                         Text(language.text("시스템 설정에서 화면 기록 접근을 허용한 뒤 다시 시도해 주세요. macOS에서 앱 재시작을 요구할 수 있습니다.", "Allow Screen Recording in System Settings, then try again. macOS may require you to reopen the app.", "请在系统设置中允许屏幕录制，然后重试。macOS 可能需要重新打开应用。"))
                             .font(.system(size: 10)).foregroundStyle(p.muted)
                         HStack {
-                            Link(language.text("시스템 설정 열기", "Open System Settings", "打开系统设置"), destination: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
-                            Button(language.text("다시 시도", "Try again", "重试")) { model.startCapture() }
+                            Button(language.text("시스템 설정 열기", "Open System Settings", "打开系统设置")) { model.openCaptureSettings() }
+                            Button(language.text("다시 시도", "Try again", "重试")) { model.startCapture(requestPermission: true) }
                         }.font(.system(size: 11))
-                    } else if model.message == "selectScreen" || model.message == "captureError" {
+                    } else if model.message == "captureError" {
+                        Text(language.text("화면 연결에 실패했습니다. 다시 연결하거나 시스템 화면 선택으로 시작해 주세요.", "Couldn’t connect to the display. Try reconnecting or use the screen picker.", "无法连接屏幕。请重试，或使用系统屏幕选择器。"))
+                            .font(.system(size: 10)).foregroundStyle(p.muted)
+                        HStack {
+                            Button(language.text("다시 연결", "Reconnect", "重新连接")) { model.startCapture(requestPermission: true) }
+                            Button(language.text("권한 설정", "Permission settings", "权限设置")) { model.openCaptureSettings() }
+                        }.font(.system(size: 11))
+                    } else if model.message == "selectScreen" {
                         Text(language.text(
                             "macOS 화면 선택 창에서 측정할 디스플레이를 선택해 주세요. 선택을 취소했다면 위 버튼으로 다시 열 수 있습니다.",
                             "Choose the display to sample in the macOS screen picker. Use the button above to reopen it if you cancelled.",
@@ -395,6 +422,11 @@ struct PickerView: View {
                             Link(language.text("화면 기록 설정 열기", "Open Screen Recording settings", "打开屏幕录制设置"),
                                  destination: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
                         }
+                    }
+                    if !model.captureErrorDetail.isEmpty {
+                        DisclosureGroup(language.text("진단 정보", "Diagnostic details", "诊断信息")) {
+                            Text(model.captureErrorDetail).font(.system(size: 10)).textSelection(.enabled)
+                        }.font(.system(size: 10)).foregroundStyle(p.muted)
                     }
 
                     HStack {
@@ -442,6 +474,7 @@ struct PickerView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in model.settingsOpen = false }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in model.resumeAfterSettings() }
     }
 
     private var footer: some View {
@@ -516,7 +549,7 @@ struct PickerView: View {
         switch model.message {
         case "connecting": return language.text("화면 측정 연결 중", "Connecting to display", "正在连接屏幕")
         case "selectScreen": return language.text("측정할 화면을 선택해 주세요", "Choose a screen to sample", "请选择取色屏幕")
-        case "captureError": return language.text("화면 캡처가 중단되었습니다. 화면을 다시 선택해 주세요", "Capture stopped. Choose a screen again.", "取色已中断，请重新选择屏幕")
+        case "captureError": return language.text("화면 측정에 연결하지 못했습니다", "Couldn’t connect to the display", "无法连接屏幕取色")
         case "otherScreen": return language.text("선택한 화면으로 커서를 이동하세요", "Move the pointer to the selected display", "请将光标移至所选屏幕")
         case "permission": return language.text("화면 기록 권한을 허용해 주세요", "Allow Screen Recording access", "请允许屏幕录制权限")
         case "pinned": return language.text("색상 고정됨", "Color pinned", "颜色已固定")

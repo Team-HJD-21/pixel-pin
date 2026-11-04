@@ -5,13 +5,23 @@ on:
     branches: ["**"]
     tags: ["v*"]
     paths:
-      - 'macos/**'
+      - 'macos/Sources/**'
+      - 'macos/Tests/**'
+      - 'macos/InfoPlist/**'
+      - 'macos/Package.*'
+      - 'macos/*.sh'
+      - 'macos/ci/**'
       - 'assets/app-icon.png'
       - '.github/workflows/macos-release.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'macos/**'
+      - 'macos/Sources/**'
+      - 'macos/Tests/**'
+      - 'macos/InfoPlist/**'
+      - 'macos/Package.*'
+      - 'macos/*.sh'
+      - 'macos/ci/**'
       - 'assets/app-icon.png'
       - '.github/workflows/macos-release.yml'
   workflow_dispatch:
@@ -22,6 +32,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
@@ -37,6 +48,8 @@ jobs:
           bash -n macos/build-app.sh
           bash -n macos/make-appcast.sh
           bash -n macos/make-dmg.sh
+      - name: Test compiled-input reuse safety
+        run: python3 -m unittest discover -s macos/ci -v
       - name: Validate workflow with pinned actionlint
         env:
           GH_TOKEN: ${{ github.token }}
@@ -55,6 +68,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - name: Verify toolchain and script syntax
@@ -71,6 +85,28 @@ jobs:
             ~/Library/Caches/org.swift.swiftpm
             ~/Library/org.swift.swiftpm
           key: macos15-xcode16.4-swiftpm-${{ hashFiles('macos/Package.swift') }}
+      - name: Find an already tested build of this commit
+        id: previous
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 macos/ci/compiled_inputs.py find --wait-seconds 480
+      - name: Restore verified compilation inputs
+        id: reuse
+        if: steps.previous.outputs.run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIOUS_RUN: ${{ steps.previous.outputs.run_id }}
+          INPUT_ARTIFACT: ${{ steps.previous.outputs.artifact }}
+        run: |
+          input_dir="$RUNNER_TEMP/compiled-inputs"
+          mkdir -p "$input_dir"
+          if gh run download "$PREVIOUS_RUN" --repo "$GITHUB_REPOSITORY" --name "$INPUT_ARTIFACT" --dir "$input_dir" && \
+             python3 macos/ci/compiled_inputs.py restore "$input_dir/compiled-inputs.tar.gz"; then
+            echo 'hit=true' >> "$GITHUB_OUTPUT"
+          else
+            echo '::warning::Compiled inputs could not be validated; running a full build.'
+          fi
       - name: Configure version and update channel
         id: config
         env:
@@ -107,10 +143,13 @@ jobs:
             echo "dmg=Pixel-Pin-${GITHUB_REF_NAME//\//-}-macos-universal.dmg"
           } >> "$GITHUB_OUTPUT"
       - name: Test sRGB sampling and loupe consistency
+        if: steps.reuse.outputs.hit != 'true'
         run: swift test --package-path macos
       - name: Build Apple silicon executable
+        if: steps.reuse.outputs.hit != 'true'
         run: bash macos/build-app.sh "$PWD/macos/build" arm64
       - name: Build Intel executable
+        if: steps.reuse.outputs.hit != 'true'
         run: bash macos/build-app.sh "$PWD/macos/build" x86_64
       - name: Assemble and validate universal app bundle
         run: |
@@ -130,6 +169,20 @@ jobs:
         run: |
           bash macos/make-dmg.sh "$PWD/$DMG"
           shasum -a 256 "$DMG" > "$DMG.sha256"
+      - name: Snapshot tested compilation inputs
+        if: github.event_name == 'push' && steps.reuse.outputs.hit != 'true'
+        run: python3 macos/ci/compiled_inputs.py pack "$RUNNER_TEMP/compiled-inputs.tar.gz"
+      - name: Save reusable compilation inputs
+        if: github.event_name == 'push' && steps.reuse.outputs.hit != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-compiled-v1-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/compiled-inputs.tar.gz
+            ${{ runner.temp }}/compiled-inputs.tar.gz.sha256
+          retention-days: 14
+          if-no-files-found: error
+          overwrite: true
       - name: Sign and validate Sparkle update feed
         if: startsWith(github.ref, 'refs/tags/')
         env:
@@ -147,6 +200,7 @@ jobs:
             macos/update-feed/appcast.xml
           if-no-files-found: error
           retention-days: 14
+          overwrite: true
       - name: Publish verified release files
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -159,6 +213,7 @@ jobs:
 
             - Includes a DMG installer: drag Pixel Pin to Applications, then open the installed app.
             - Automatically samples the full display under your pointer after Screen Recording authorization. The system picker remains available in settings.
+            - Fixes permission recovery: retries after returning from System Settings, attempts ScreenCaptureKit even when preflight is stale, and shows capture diagnostics.
             - HEX, RGB, swatches, and the magnifier share one sRGB pixel buffer.
             - Opens settings with Command-comma in a centered popup. Click outside or press Escape to close it.
             - The close button minimizes to the Dock by default; Settings can change it to quit. Command-Q always quits.

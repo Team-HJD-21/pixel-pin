@@ -37,6 +37,7 @@ struct PixelRaster {
 final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelegate {
     var onFrame: ((PixelRaster, CGRect) -> Void)?
     var onState: ((String) -> Void)?
+    var onError: ((String) -> Void)?
     private var stream: SCStream?
     private var screenFrame = CGRect.zero
     private let queue = DispatchQueue(label: "com.teamhjd.pixelpin.capture")
@@ -46,34 +47,30 @@ final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelegate {
     private var switching = false
     private var generation = 0
 
-    @MainActor func startAutomatically() {
+    @MainActor func startAutomatically(requestPermission: Bool = false) {
         automaticMode = true
         displays = []
         activeDisplayID = nil
         generation += 1
         let request = generation
         onState?("connecting")
-        guard CGPreflightScreenCaptureAccess() else {
-            if !UserDefaults.standard.bool(forKey: "didRequestAutomaticCaptureAccess") {
-                UserDefaults.standard.set(true, forKey: "didRequestAutomaticCaptureAccess")
-                if CGRequestScreenCaptureAccess(), CGPreflightScreenCaptureAccess() {
-                    startAutomatically()
-                    return
-                }
-            }
-            onState?("permission")
-            return
-        }
         Task {
             do {
-                let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+                let content = try await ScreenCaptureAccess.fetch(requestPermission: requestPermission) {
+                    try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+                }
                 guard automaticMode, generation == request else { return }
+                guard !content.displays.isEmpty else {
+                    report(NSError(domain: SCStreamError.errorDomain, code: SCStreamError.Code.noDisplayList.rawValue,
+                                   userInfo: [NSLocalizedDescriptionKey: "No display is available for capture."]))
+                    return
+                }
                 displays = content.displays
                 activeDisplayID = nil
                 followPointer()
             } catch {
                 guard generation == request else { return }
-                onState?("captureError")
+                report(error)
             }
         }
     }
@@ -120,7 +117,7 @@ final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelegate {
                     await start(filter: SCContentFilter(display: display, excludingWindows: []),
                         frame: screen.frame, width: CGDisplayPixelsWide(display.displayID),
                         height: CGDisplayPixelsHigh(display.displayID))
-                } catch { onState?("captureError") }
+                } catch { report(error) }
             }
         }
     }
@@ -154,8 +151,15 @@ final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelegate {
             guard generation == request else { return }
             activeDisplayID = nil
             displays = []
-            onState?("captureError")
+            self.stream = nil
+            report(error)
         }
+    }
+
+    @MainActor private func report(_ error: Error) {
+        let failure = error as NSError
+        onError?("\(failure.localizedDescription) [\(failure.domain): \(failure.code)]")
+        onState?(ScreenCaptureAccess.isDenied(error) ? "permission" : "captureError")
     }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
@@ -183,7 +187,7 @@ final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelegate {
             self.stream = nil
             self.displays = []
             self.activeDisplayID = nil
-            self.onState?("captureError")
+            self.report(error)
         }
     }
 }
@@ -208,6 +212,6 @@ extension ScreenCaptureEngine: SCContentSharingPickerObserver {
     }
 
     func contentSharingPickerStartDidFailWithError(_ error: Error) {
-        DispatchQueue.main.async { [weak self] in self?.onState?("captureError") }
+        DispatchQueue.main.async { [weak self] in self?.report(error) }
     }
 }
