@@ -87,15 +87,23 @@ jobs:
               echo '::error::Both Sparkle repository keys are required for a release.'
               exit 1
             fi
+            if [[ ! "$PUBLIC_KEY" =~ ^[A-Za-z0-9+/]{43}=$ ]]; then
+              echo '::error::The Sparkle public key must be the base64 key string only.'
+              exit 1
+            fi
             public_key="$PUBLIC_KEY"
           fi
           [[ "$version" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]
-          echo "MACOS_APP_VERSION=$version" >> "$GITHUB_ENV"
-          echo "MACOS_BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
-          echo "MACOS_UPDATE_FEED_URL=https://github.com/$GITHUB_REPOSITORY/releases/download/$feed_tag/appcast.xml" >> "$GITHUB_ENV"
-          echo "SPARKLE_ED_PUBLIC_KEY=$public_key" >> "$GITHUB_ENV"
-          echo "feed_tag=$feed_tag" >> "$GITHUB_OUTPUT"
-          echo "archive=Pixel-Pin-${GITHUB_REF_NAME//\//-}-macos-universal.zip" >> "$GITHUB_OUTPUT"
+          {
+            echo "MACOS_APP_VERSION=$version"
+            echo "MACOS_BUILD_NUMBER=$GITHUB_RUN_NUMBER"
+            echo "MACOS_UPDATE_FEED_URL=https://github.com/$GITHUB_REPOSITORY/releases/download/$feed_tag/appcast.xml"
+            echo "SPARKLE_ED_PUBLIC_KEY=$public_key"
+          } >> "$GITHUB_ENV"
+          {
+            echo "feed_tag=$feed_tag"
+            echo "archive=Pixel-Pin-${GITHUB_REF_NAME//\//-}-macos-universal.zip"
+          } >> "$GITHUB_OUTPUT"
       - name: Test sRGB sampling and loupe consistency
         run: swift test --package-path macos
       - name: Build Apple silicon executable
