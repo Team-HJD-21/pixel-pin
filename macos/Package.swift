@@ -11,8 +11,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "PixelPin",
-            path: "Sources/PixelPin",
             dependencies: [.product(name: "Sparkle", package: "sparkle")],
+            path: "Sources/PixelPin",
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("CoreGraphics"),
