@@ -14,7 +14,7 @@ struct PixelPinMacApp: App {
                 .preferredColorScheme(model.theme.colorScheme)
                 .onAppear { delegate.keepWindowsFloating() }
         }
-        .windowStyle(.hiddenTitleBar)
+        .windowStyle(.titleBar)
         .windowResizability(.contentSize)
         .commands {
             CommandGroup(replacing: .newItem) { }
@@ -38,10 +38,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.windows.forEach { window in
             window.level = .floating
             window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-            window.isMovableByWindowBackground = true
-            window.titleVisibility = .hidden
-            window.titlebarAppearsTransparent = true
-            window.backgroundColor = .clear
+            window.isMovableByWindowBackground = false
+            window.titleVisibility = .visible
+            window.titlebarAppearsTransparent = false
         }
     }
 }
@@ -158,10 +157,9 @@ final class PickerModel: ObservableObject {
             Task { @MainActor in self?.sample() }
         }
         timer?.tolerance = 0.015
-        if !CGPreflightScreenCaptureAccess() {
-            let permitted = CGRequestScreenCaptureAccess()
-            if !permitted { message = "permission" }
-        }
+        // Never trigger Apple's permission prompt automatically on launch.
+        // macOS can keep this false until the user grants access and relaunches.
+        if !CGPreflightScreenCaptureAccess() { message = "permission" }
     }
 
     deinit {
@@ -178,32 +176,40 @@ final class PickerModel: ObservableObject {
 
     func sample() {
         guard !frozen else { return }
+        guard CGPreflightScreenCaptureAccess() else {
+            message = "permission"
+            return
+        }
         let cursor = NSEvent.mouseLocation
         guard let screen = NSScreen.screens.first(where: { $0.frame.contains(cursor) }),
               let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return }
         guard !NSApp.windows.contains(where: { $0.isVisible && $0.frame.contains(cursor) }) else { return }
 
         let display = CGDirectDisplayID(number.uint32Value)
-        let scale = screen.backingScaleFactor
-        let width = Int(CGDisplayPixelsWide(display)), height = Int(CGDisplayPixelsHigh(display))
-        guard width >= 1, height >= 1 else { return }
-        let px = min(max(Int(((cursor.x - screen.frame.minX) * scale).rounded(.down)), 0), width - 1)
-        let py = min(max(Int(((screen.frame.maxY - cursor.y) * scale).rounded(.down)), 0), height - 1)
-        let left = min(max(px - 8, 0), max(0, width - 17))
-        let top = min(max(py - 8, 0), max(0, height - 17))
-        let captureRect = CGRect(x: left, y: top, width: min(17, width), height: min(17, height))
-        guard let image = CGDisplayCreateImage(display, rect: captureRect) else {
-            message = "permission"
-            return
-        }
-        let bitmap = NSBitmapImageRep(cgImage: image)
-        guard let nsColor = bitmap.colorAt(x: min(max(px - left, 0), bitmap.pixelsWide - 1), y: min(max(py - top, 0), bitmap.pixelsHigh - 1))?.usingColorSpace(.deviceRGB) else {
-            message = "permission"
-            return
-        }
-        color = PixelColor(red: Int((nsColor.redComponent * 255).rounded()), green: Int((nsColor.greenComponent * 255).rounded()), blue: Int((nsColor.blueComponent * 255).rounded()))
-        loupe = image
+        guard let displayImage = CGDisplayCreateImage(display) else { return }
+        guard screen.frame.width > 0, screen.frame.height > 0 else { return }
+        // Map AppKit's logical screen coordinates to the actual captured pixel
+        // dimensions. This also handles Retina and mixed-scale displays.
+        let normalizedX = (cursor.x - screen.frame.minX) / screen.frame.width
+        let normalizedY = (screen.frame.maxY - cursor.y) / screen.frame.height
+        let px = min(max(Int((normalizedX * CGFloat(displayImage.width)).rounded(.down)), 0), displayImage.width - 1)
+        let py = min(max(Int((normalizedY * CGFloat(displayImage.height)).rounded(.down)), 0), displayImage.height - 1)
+        let bitmap = NSBitmapImageRep(cgImage: displayImage)
+        guard let nsColor = bitmap.colorAt(x: px, y: py)?.usingColorSpace(NSColorSpace.sRGB) else { return }
+        color = PixelColor(
+            red: Self.byte(nsColor.redComponent),
+            green: Self.byte(nsColor.greenComponent),
+            blue: Self.byte(nsColor.blueComponent)
+        )
+        let left = min(max(px - 8, 0), max(0, displayImage.width - 17))
+        let top = min(max(py - 8, 0), max(0, displayImage.height - 17))
+        let cropRect = CGRect(x: left, y: top, width: min(17, displayImage.width), height: min(17, displayImage.height))
+        loupe = displayImage.cropping(to: cropRect)
         message = "live"
+    }
+
+    private static func byte(_ component: CGFloat) -> Int {
+        Int((min(max(component, 0), 1) * 255).rounded())
     }
 
     func copy(_ value: PixelColor) {
@@ -240,7 +246,6 @@ struct PickerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     Text(language.text("마음에 든 색, 그대로.", "Pick it. Pin it.", "看中的颜色，一键固定。"))
@@ -322,30 +327,23 @@ struct PickerView: View {
         }
         .background(p.background)
         .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(alignment: .topTrailing) {
-            if model.settingsOpen { settingsPanel.padding(.top, 48).padding(.trailing, 10).zIndex(2) }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { model.settingsOpen.toggle() } label: {
+                    Image(systemName: "gearshape")
+                }
+                .help(language.text("설정", "Settings", "设置"))
+                .accessibilityLabel(language.text("설정", "Settings", "设置"))
+            }
         }
-    }
-
-    private var header: some View {
-        HStack(spacing: 9) {
-            Image(nsImage: appIcon).resizable().frame(width: 24, height: 24).clipShape(RoundedRectangle(cornerRadius: 6))
-            Text("Pixel Pin").font(.system(size: 12, weight: .semibold)).foregroundStyle(p.ink)
-            Spacer()
-            Button { model.settingsOpen.toggle() } label: { Image(systemName: "gearshape").font(.system(size: 15)).foregroundStyle(p.muted).frame(width: 30, height: 30) }.buttonStyle(.plain)
-            Button { NSApp.keyWindow?.miniaturize(nil) } label: { Image(systemName: "minus").font(.system(size: 13)).foregroundStyle(p.muted).frame(width: 25, height: 30) }.buttonStyle(.plain)
-            Button { NSApp.terminate(nil) } label: { Image(systemName: "xmark").font(.system(size: 13)).foregroundStyle(p.muted).frame(width: 25, height: 30) }.buttonStyle(.plain)
-        }.padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 6)
+        .overlay(alignment: .topTrailing) {
+            if model.settingsOpen { settingsPanel.padding(.top, 12).padding(.trailing, 10).zIndex(2) }
+        }
     }
 
     private var footer: some View {
         Link("Made by TeamHJD", destination: URL(string: "https://teamhjd.com/")!)
             .font(.system(size: 10)).foregroundStyle(p.muted).padding(.vertical, 12)
-    }
-
-    private var appIcon: NSImage {
-        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"), let image = NSImage(contentsOf: url) { return image }
-        return NSImage(systemSymbolName: "eyedropper.halffull", accessibilityDescription: "Pixel Pin") ?? NSImage(size: NSSize(width: 24, height: 24))
     }
 
     private var settingsPanel: some View {
@@ -401,3 +399,4 @@ struct PickerView: View {
         return PixelColor(red: Int((rgb >> 16) & 255), green: Int((rgb >> 8) & 255), blue: Int(rgb & 255))
     }
 }
+

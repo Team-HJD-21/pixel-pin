@@ -13,4 +13,5 @@ open "build/Pixel Pin.app"
 
 On first launch, allow **Screen Recording** when macOS asks. The app captures a 17 × 17 pixel area under the pointer and pauses sampling while the pointer is over its own window. Clicking elsewhere pins the current color; clicking again resumes live sampling.
 
-The script creates an unsigned local `.app` for development. Before publishing a download, build and verify on macOS, sign with TeamHJD's Apple Developer ID, notarize it, and package the signed app as a DMG or ZIP. This Windows checkout cannot validate a macOS build or its permission flow.
+The build script creates an ad-hoc signed `.app`. This lets macOS identify the exact same build between launches, but an ad-hoc signature is tied to that binary; updating the app can require Screen Recording permission again. Public distribution should use TeamHJD's stable Apple Developer ID signature and notarization. This Windows checkout cannot validate a macOS runtime or its permission flow.
+

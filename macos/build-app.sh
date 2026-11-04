@@ -40,5 +40,11 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
 </dict></plist>
 PLIST
+# Give this exact build a stable app identifier for Screen Recording consent.
+# Ad-hoc signatures are tied to the binary, so permission can still need to be
+# granted again after an app update. A Developer ID signature is required for
+# a durable identity across releases and notarized distribution.
+codesign --force --deep --sign - "$APP"
+codesign --verify --deep --strict "$APP"
 echo "Created $APP"
-echo "For public distribution, sign with Developer ID and notarize this app before packaging it."
+echo "This build uses an ad-hoc signature; Developer ID signing and notarization are still required for public distribution."
