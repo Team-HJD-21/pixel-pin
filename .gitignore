@@ -7,4 +7,5 @@ artifacts/
 macos/.build/
 macos/.build-*/
 macos/build/
+macos/update-feed*/
 .pages/

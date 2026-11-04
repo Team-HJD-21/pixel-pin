@@ -12,14 +12,24 @@ final class PixelRasterTests: XCTestCase {
         XCTAssertEqual(raster.color(x: 1, y: 0)?.hex, "#89ADF5")
         XCTAssertEqual(raster.color(x: 0, y: 1)?.hex, "#7E904E")
         XCTAssertEqual(raster.image.colorSpace?.name, CGColorSpace.sRGB)
-        let bitmap = NSBitmapImageRep(cgImage: raster.image)
         for y in 0..<2 {
             for x in 0..<2 {
                 let pixel = try XCTUnwrap(raster.color(x: x, y: y))
-                let color = try XCTUnwrap(bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB))
-                XCTAssertEqual(Int((color.redComponent * 255).rounded()), pixel.red)
-                XCTAssertEqual(Int((color.greenComponent * 255).rounded()), pixel.green)
-                XCTAssertEqual(Int((color.blueComponent * 255).rounded()), pixel.blue)
+                let crop = try XCTUnwrap(raster.image.cropping(to: CGRect(x: x, y: y, width: 1, height: 1)))
+                var rendered = [UInt8](repeating: 0, count: 4)
+                try rendered.withUnsafeMutableBytes { buffer in
+                    let context = try XCTUnwrap(CGContext(data: buffer.baseAddress, width: 1, height: 1,
+                        bitsPerComponent: 8, bytesPerRow: 4,
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
+                    context.draw(crop, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+                }
+                // Validate rendered loupe pixels, without NSBitmapImageRep's
+                // device-dependent NSColor conversion (the original bug).
+                XCTAssertEqual(Int(rendered[0]), pixel.red)
+                XCTAssertEqual(Int(rendered[1]), pixel.green)
+                XCTAssertEqual(Int(rendered[2]), pixel.blue)
+                XCTAssertEqual(rendered[3], 255)
             }
         }
     }

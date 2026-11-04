@@ -28,7 +28,15 @@ swift build --configuration release --triple arm64-apple-macosx13.0 --build-path
 .build-arm64/artifacts/sparkle/Sparkle/bin/generate_keys -x "$HOME/pixelpin-sparkle-private-key.txt"
 ```
 
-The first key command creates a key pair in the login Keychain and prints the public key. The second exports that existing private key to the file; `-x` does not create a missing key. In GitHub, open **Settings → Secrets and variables → Actions**. Add the printed public key as the repository variable `SPARKLE_ED_PUBLIC_KEY`, and the private key file contents as the repository secret `SPARKLE_ED_PRIVATE_KEY`. Keep a secure backup of the private key and never commit it. Stable tagged releases then generate and attach a signed `appcast.xml`; builds without both keys keep update checking disabled.
+The first key command creates a key pair in the login Keychain and prints the public key. The second exports that existing private key to the file; `-x` does not create a missing key. In GitHub, open **Settings → Secrets and variables → Actions**. Add the printed public key as the repository variable `SPARKLE_ED_PUBLIC_KEY`, and the private key file contents as the repository secret `SPARKLE_ED_PRIVATE_KEY`. Keep a secure backup of the private key and never commit it. Tagged releases require both keys and validate signed archives before publishing.
+
+Beta apps use the permanent `macos-beta-updates` release asset feed; stable apps use `macos-updates`. Each versioned release also includes its appcast and archive SHA-256. macOS releases do not replace the repository's Windows latest-release link. The update key must be included when the app is built, so older preview builds without it need one manual installation of a signed-update-enabled build. Sparkle signing is separate from Apple Developer ID signing and notarization.
+
+## CI checks
+
+Ubuntu first validates the workflow using checksum-verified actionlint 1.7.12 and checks Bash syntax. macOS 15 Intel uses Xcode 16.4 explicitly, runs the raster tests, builds Apple silicon and Intel in separate steps, then validates the complete plist, both executable architectures, the embedded framework, the ad-hoc signature, and the ZIP archive. Release jobs generate and validate the signed appcast before uploading any release files. Outdated branch jobs are cancelled; tagged release jobs remain independent.
+
+`build-app.sh OUTPUT arm64`, `build-app.sh OUTPUT x86_64`, and `build-app.sh OUTPUT package` expose those same stages locally. Running it without a stage still builds and packages everything.
 
 This Windows checkout cannot validate a macOS runtime, framework loading, or the permission flow.
 

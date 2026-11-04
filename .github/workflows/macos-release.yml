@@ -4,81 +4,161 @@ on:
   push:
     branches: ["**"]
     tags: ["v*"]
+    paths:
+      - 'macos/**'
+      - 'assets/app-icon.png'
+      - '.github/workflows/macos-release.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'macos/**'
+      - 'assets/app-icon.png'
+      - '.github/workflows/macos-release.yml'
   workflow_dispatch:
 
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 permissions:
-  contents: write
+  contents: read
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
 
 jobs:
-  build:
-    runs-on: macos-15-intel
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Verify sRGB sampling and loupe consistency
-        run: swift test --package-path macos
-      - name: Build universal macOS app
-        env:
-          MACOS_APP_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '1.2.1' }}
-          MACOS_BUILD_NUMBER: ${{ github.run_number }}
-          SPARKLE_ED_PUBLIC_KEY: ${{ github.ref_type == 'tag' && !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha') && vars.SPARKLE_ED_PUBLIC_KEY != '' && secrets.SPARKLE_ED_PRIVATE_KEY != '' && vars.SPARKLE_ED_PUBLIC_KEY || '' }}
-        run: bash macos/build-app.sh
-      - name: Verify app signature
-        run: codesign --verify --deep --strict --verbose=2 'macos/build/Pixel Pin.app'
-      - name: Package app
-        id: package
+      - name: Validate shell scripts
         run: |
-          archive="Pixel-Pin-${GITHUB_REF_NAME//\//-}-macos-universal.zip"
-          ditto -c -k --sequesterRsrc --keepParent 'macos/build/Pixel Pin.app' "$archive"
-          echo "name=$archive" >> "$GITHUB_OUTPUT"
+          bash -n macos/build-app.sh
+          bash -n macos/make-appcast.sh
+      - name: Validate workflow with pinned actionlint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tool_dir="$RUNNER_TEMP/actionlint"
+          mkdir -p "$tool_dir"
+          gh release download v1.7.12 --repo rhysd/actionlint \
+            --pattern actionlint_1.7.12_linux_amd64.tar.gz \
+            --pattern actionlint_1.7.12_checksums.txt --dir "$tool_dir"
+          (cd "$tool_dir" && sha256sum --check --ignore-missing actionlint_1.7.12_checksums.txt)
+          tar -xzf "$tool_dir/actionlint_1.7.12_linux_amd64.tar.gz" -C "$tool_dir"
+          "$tool_dir/actionlint" .github/workflows/macos-release.yml
+  build:
+    needs: validate
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify toolchain and script syntax
+        run: |
+          test -d "$DEVELOPER_DIR"
+          xcodebuild -version
+          swift --version
+          for script in macos/build-app.sh macos/make-appcast.sh; do bash -n "$script"; done
+          swift package --package-path macos dump-package > /dev/null
+      - name: Restore Swift package download cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            ~/Library/org.swift.swiftpm
+          key: macos15-xcode16.4-swiftpm-${{ hashFiles('macos/Package.swift') }}
+      - name: Configure version and update channel
+        id: config
+        env:
+          PUBLIC_KEY: ${{ vars.SPARKLE_ED_PUBLIC_KEY }}
+          PRIVATE_KEY_READY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY != '' }}
+        run: |
+          version=1.2.1
+          feed_tag=macos-updates
+          public_key=''
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            if [[ "$version" == *-* ]]; then feed_tag=macos-beta-updates; fi
+            version="${version%%-*}"
+            if [[ -z "$PUBLIC_KEY" || "$PRIVATE_KEY_READY" != true ]]; then
+              echo '::error::Both Sparkle repository keys are required for a release.'
+              exit 1
+            fi
+            public_key="$PUBLIC_KEY"
+          fi
+          [[ "$version" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]
+          echo "MACOS_APP_VERSION=$version" >> "$GITHUB_ENV"
+          echo "MACOS_BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+          echo "MACOS_UPDATE_FEED_URL=https://github.com/$GITHUB_REPOSITORY/releases/download/$feed_tag/appcast.xml" >> "$GITHUB_ENV"
+          echo "SPARKLE_ED_PUBLIC_KEY=$public_key" >> "$GITHUB_ENV"
+          echo "feed_tag=$feed_tag" >> "$GITHUB_OUTPUT"
+          echo "archive=Pixel-Pin-${GITHUB_REF_NAME//\//-}-macos-universal.zip" >> "$GITHUB_OUTPUT"
+      - name: Test sRGB sampling and loupe consistency
+        run: swift test --package-path macos
+      - name: Build Apple silicon executable
+        run: bash macos/build-app.sh "$PWD/macos/build" arm64
+      - name: Build Intel executable
+        run: bash macos/build-app.sh "$PWD/macos/build" x86_64
+      - name: Assemble and validate universal app bundle
+        run: |
+          bash macos/build-app.sh "$PWD/macos/build" package
+          codesign --verify --deep --strict --verbose=2 'macos/build/Pixel Pin.app'
+          otool -L 'macos/build/Pixel Pin.app/Contents/MacOS/PixelPin'
+      - name: Package verified app
+        env:
+          ARCHIVE: ${{ steps.config.outputs.archive }}
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent 'macos/build/Pixel Pin.app' "$ARCHIVE"
+          unzip -tqq "$ARCHIVE"
+          shasum -a 256 "$ARCHIVE" > "$ARCHIVE.sha256"
+      - name: Sign and validate Sparkle update feed
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          ARCHIVE: ${{ steps.config.outputs.archive }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: printf '%s\n' "$SPARKLE_ED_PRIVATE_KEY" | bash macos/make-appcast.sh "$ARCHIVE" "$GITHUB_REF_NAME"
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.package.outputs.name }}
-          path: ${{ steps.package.outputs.name }}
+          name: ${{ steps.config.outputs.archive }}
+          path: |
+            ${{ steps.config.outputs.archive }}
+            ${{ steps.config.outputs.archive }}.sha256
+            macos/update-feed/appcast.xml
           if-no-files-found: error
           retention-days: 14
-      - name: Publish GitHub release asset
+      - name: Publish verified release files
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           name: Pixel Pin for macOS ${{ github.ref_name }}
-          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          make_latest: false
           body: |
             Universal app for Apple silicon and Intel Macs.
 
-            - Uses ScreenCaptureKit and the macOS screen picker on macOS 14+ instead of legacy direct capture.
-            - HEX, RGB, swatches, and the magnifier now share one explicitly sRGB capture buffer.
+            - Uses ScreenCaptureKit and the system screen picker on macOS 14+.
+            - HEX, RGB, swatches, and the magnifier share one sRGB pixel buffer.
             - Corrects the magnifier marker near display edges.
+            - Includes signed Sparkle updates with separate beta and stable feeds.
 
-            On macOS 14+, choose the display to sample in the system picker when opening the app. Use **Choose a screen** to switch displays or restart a stopped capture. macOS 13 uses ScreenCaptureKit with Screen Recording permission.
+            Choose a display in the macOS screen picker when opening the app. **Choose a screen** changes displays or restarts a stopped capture. For comparison, set Digital Color Meter to sRGB and its smallest aperture.
 
-            **Preview build:** This app uses an ad-hoc signature and is not Developer ID signed or notarized. macOS may block it on first launch. Screen Recording permission is required to sample pixels. Permission may need to be granted again after an app update.
-          files: Pixel-Pin-${{ github.ref_name }}-macos-universal.zip
-      - name: Generate signed Sparkle appcast
-        id: appcast
-        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha')
+            Sparkle authenticates updates. This app still uses an ad-hoc Apple code signature and is not Developer ID signed or notarized, so the first-open macOS security warning may remain.
+          files: |
+            ${{ steps.config.outputs.archive }}
+            ${{ steps.config.outputs.archive }}.sha256
+            macos/update-feed/appcast.xml
+      - name: Publish channel update feed
+        if: startsWith(github.ref, 'refs/tags/')
         env:
-          SPARKLE_ED_PUBLIC_KEY: ${{ vars.SPARKLE_ED_PUBLIC_KEY }}
-          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          FEED_TAG: ${{ steps.config.outputs.feed_tag }}
         run: |
-          if [[ -z "$SPARKLE_ED_PUBLIC_KEY" || -z "$SPARKLE_ED_PRIVATE_KEY" ]]; then
-            echo "Sparkle signing keys are not configured; skipping appcast generation."
-            exit 0
+          if ! gh release view "$FEED_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$FEED_TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \
+              --title "Pixel Pin $FEED_TAG feed" --notes 'Automatically maintained macOS update feed. Download the app from a versioned release.'
           fi
-          tool="$(find macos/.build-arm64/artifacts -type f -name generate_appcast -print -quit)"
-          test -n "$tool"
-          mkdir -p macos/update-feed
-          cp "${{ steps.package.outputs.name }}" macos/update-feed/
-          printf '%s\n' "$SPARKLE_ED_PRIVATE_KEY" | "$tool" \
-            --ed-key-file - \
-            --download-url-prefix "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/" \
-            macos/update-feed
-          grep -q 'sparkle:edSignature=' macos/update-feed/appcast.xml
-          echo "enabled=true" >> "$GITHUB_OUTPUT"
-      - name: Attach Sparkle appcast to release
-        if: steps.appcast.outputs.enabled == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: macos/update-feed/appcast.xml
-
+          gh release upload "$FEED_TAG" macos/update-feed/appcast.xml --repo "$GITHUB_REPOSITORY" --clobber
