@@ -4,4 +4,7 @@ obj/
 *.user
 dist/
 artifacts/
+macos/.build/
+macos/.build-*/
+macos/build/
 .pages/
