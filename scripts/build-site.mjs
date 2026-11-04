@@ -48,8 +48,8 @@ else{
 const releases=all.filter(r=>!r.draft&&!r.prerelease&&r.published_at).sort((a,b)=>Date.parse(b.published_at)-Date.parse(a.published_at));
 if(!releases.length)throw new Error('A published stable release is required');
 const latest=releases[0];const zip=latest.assets.find(a=>/win-x64\.zip$/i.test(a.name));if(!zip)throw new Error('Missing Windows x64 release asset');
-const macRelease=all.filter(r=>!r.draft&&r.prerelease&&r.published_at).sort((a,b)=>Date.parse(b.published_at)-Date.parse(a.published_at)).find(r=>r.assets?.some(a=>/macos-universal\.zip$/i.test(a.name)));
-const macAsset=macRelease?.assets.find(a=>/macos-universal\.zip$/i.test(a.name));
+const macRelease=all.filter(r=>!r.draft&&r.prerelease&&r.published_at).sort((a,b)=>Date.parse(b.published_at)-Date.parse(a.published_at)).find(r=>r.assets?.some(a=>/macos-universal\.(dmg|zip)$/i.test(a.name)));
+const macAsset=macRelease?.assets.find(a=>/macos-universal\.dmg$/i.test(a.name))||macRelease?.assets.find(a=>/macos-universal\.zip$/i.test(a.name));
 const anchor=release=>'release-'+String(release.tag_name).replace(/[^a-zA-Z0-9_-]/g,'-');
 const prefix=language=>language==='ko'?'':`/${language}`;
 const localizedName=(release,language)=>language==='zh-CN'&&release.tag_name==='v1.1.0'?'Pixel Pin v1.1.0 — 按你的习惯来':release.name||release.tag_name;

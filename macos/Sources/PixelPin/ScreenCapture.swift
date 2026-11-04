@@ -40,8 +40,66 @@ final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelegate {
     private var stream: SCStream?
     private var screenFrame = CGRect.zero
     private let queue = DispatchQueue(label: "com.teamhjd.pixelpin.capture")
+    private var automaticMode = false
+    private var displays: [SCDisplay] = []
+    private var activeDisplayID: CGDirectDisplayID?
+    private var switching = false
+    private var generation = 0
+
+    @MainActor func startAutomatically() {
+        automaticMode = true
+        displays = []
+        activeDisplayID = nil
+        generation += 1
+        let request = generation
+        onState?("connecting")
+        guard CGPreflightScreenCaptureAccess() else {
+            if !UserDefaults.standard.bool(forKey: "didRequestAutomaticCaptureAccess") {
+                UserDefaults.standard.set(true, forKey: "didRequestAutomaticCaptureAccess")
+                if CGRequestScreenCaptureAccess(), CGPreflightScreenCaptureAccess() {
+                    startAutomatically()
+                    return
+                }
+            }
+            onState?("permission")
+            return
+        }
+        Task {
+            do {
+                let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+                guard automaticMode, generation == request else { return }
+                displays = content.displays
+                activeDisplayID = nil
+                followPointer()
+            } catch {
+                guard generation == request else { return }
+                onState?("captureError")
+            }
+        }
+    }
+
+    @MainActor func followPointer() {
+        guard automaticMode, !switching,
+              let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }),
+              let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
+              number.uint32Value != activeDisplayID,
+              let display = displays.first(where: { $0.displayID == number.uint32Value }) else { return }
+        activeDisplayID = display.displayID
+        switching = true
+        onState?("connecting")
+        let request = generation
+        Task {
+            guard automaticMode, generation == request else { switching = false; return }
+            await start(filter: SCContentFilter(display: display, excludingWindows: []),
+                        frame: screen.frame, width: CGDisplayPixelsWide(display.displayID),
+                        height: CGDisplayPixelsHigh(display.displayID))
+            switching = false
+        }
+    }
 
     @MainActor func selectScreen() {
+        automaticMode = false
+        generation += 1
         if #available(macOS 14.0, *) {
             let picker = SCContentSharingPicker.shared
             picker.add(self)
@@ -60,15 +118,19 @@ final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelegate {
                     let id = (screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
                     guard let display = content.displays.first(where: { $0.displayID == id }), let screen else { return }
                     await start(filter: SCContentFilter(display: display, excludingWindows: []),
-                        frame: screen.frame, width: display.width, height: display.height)
+                        frame: screen.frame, width: CGDisplayPixelsWide(display.displayID),
+                        height: CGDisplayPixelsHigh(display.displayID))
                 } catch { onState?("captureError") }
             }
         }
     }
 
     @MainActor private func start(filter: SCContentFilter, frame: CGRect, width: Int, height: Int) async {
+        generation += 1
+        let request = generation
         do {
             if let stream { try? await stream.stopCapture() }
+            guard generation == request else { return }
             self.stream = nil
             screenFrame = frame
             let config = SCStreamConfiguration()
@@ -84,8 +146,14 @@ final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelegate {
             try next.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
             self.stream = next
             try await next.startCapture()
+            guard generation == request else { try? await next.stopCapture(); return }
             onState?("live")
-        } catch { onState?("captureError") }
+        } catch {
+            guard generation == request else { return }
+            activeDisplayID = nil
+            displays = []
+            onState?("captureError")
+        }
     }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
@@ -111,6 +179,8 @@ final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self, self.stream === stream else { return }
             self.stream = nil
+            self.displays = []
+            self.activeDisplayID = nil
             self.onState?("captureError")
         }
     }

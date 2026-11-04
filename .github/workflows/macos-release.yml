@@ -36,6 +36,7 @@ jobs:
         run: |
           bash -n macos/build-app.sh
           bash -n macos/make-appcast.sh
+          bash -n macos/make-dmg.sh
       - name: Validate workflow with pinned actionlint
         env:
           GH_TOKEN: ${{ github.token }}
@@ -61,7 +62,7 @@ jobs:
           test -d "$DEVELOPER_DIR"
           xcodebuild -version
           swift --version
-          for script in macos/build-app.sh macos/make-appcast.sh; do bash -n "$script"; done
+          for script in macos/build-app.sh macos/make-appcast.sh macos/make-dmg.sh; do bash -n "$script"; done
           swift package --package-path macos dump-package > /dev/null
       - name: Restore Swift package download cache
         uses: actions/cache@v4
@@ -103,6 +104,7 @@ jobs:
           {
             echo "feed_tag=$feed_tag"
             echo "archive=Pixel-Pin-${GITHUB_REF_NAME//\//-}-macos-universal.zip"
+            echo "dmg=Pixel-Pin-${GITHUB_REF_NAME//\//-}-macos-universal.dmg"
           } >> "$GITHUB_OUTPUT"
       - name: Test sRGB sampling and loupe consistency
         run: swift test --package-path macos
@@ -122,6 +124,12 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent 'macos/build/Pixel Pin.app' "$ARCHIVE"
           unzip -tqq "$ARCHIVE"
           shasum -a 256 "$ARCHIVE" > "$ARCHIVE.sha256"
+      - name: Create and validate drag-to-Applications installer
+        env:
+          DMG: ${{ steps.config.outputs.dmg }}
+        run: |
+          bash macos/make-dmg.sh "$PWD/$DMG"
+          shasum -a 256 "$DMG" > "$DMG.sha256"
       - name: Sign and validate Sparkle update feed
         if: startsWith(github.ref, 'refs/tags/')
         env:
@@ -134,6 +142,8 @@ jobs:
           path: |
             ${{ steps.config.outputs.archive }}
             ${{ steps.config.outputs.archive }}.sha256
+            ${{ steps.config.outputs.dmg }}
+            ${{ steps.config.outputs.dmg }}.sha256
             macos/update-feed/appcast.xml
           if-no-files-found: error
           retention-days: 14
@@ -147,17 +157,20 @@ jobs:
           body: |
             Universal app for Apple silicon and Intel Macs.
 
-            - Uses ScreenCaptureKit and the system screen picker on macOS 14+.
+            - Includes a DMG installer: drag Pixel Pin to Applications, then open the installed app.
+            - Automatically samples the full display under your pointer after Screen Recording authorization. The system picker remains available in settings.
             - HEX, RGB, swatches, and the magnifier share one sRGB pixel buffer.
-            - Corrects the magnifier marker near display edges.
+            - Opens settings with Command-comma in a centered popup. Click outside or press Escape to close it.
             - Includes signed Sparkle updates with separate beta and stable feeds.
 
-            Choose a display in the macOS screen picker when opening the app. **Choose a screen** changes displays or restarts a stopped capture. For comparison, set Digital Color Meter to sRGB and its smallest aperture.
+            macOS may still ask to renew direct screen access; the app cannot permanently suppress system permission prompts. Automatic sampling can be disabled in settings to use the system picker instead. For comparison, set Digital Color Meter to sRGB and its smallest aperture.
 
             Sparkle authenticates updates. This app still uses an ad-hoc Apple code signature and is not Developer ID signed or notarized, so the first-open macOS security warning may remain.
           files: |
             ${{ steps.config.outputs.archive }}
             ${{ steps.config.outputs.archive }}.sha256
+            ${{ steps.config.outputs.dmg }}
+            ${{ steps.config.outputs.dmg }}.sha256
             macos/update-feed/appcast.xml
       - name: Publish channel update feed
         if: startsWith(github.ref, 'refs/tags/')

@@ -11,9 +11,11 @@ bash ./build-app.sh
 open "build/Pixel Pin.app"
 ```
 
-On macOS 14+, choose a display through the system screen picker when the app opens. **Choose a screen** reopens the picker to change the display or restart capture after stopping it in macOS. The app uses ScreenCaptureKit without the deprecated direct capture APIs. On macOS 13, allow Screen Recording in System Settings instead; that version does not provide the system picker.
+For a fresh installation, download the DMG, open it, and drag **Pixel Pin.app** onto **Applications**. Eject the image and launch the installed app from Applications. Updates are disabled when running the app from Downloads, a mounted DMG, or another temporary location; the app shows installation guidance there. ZIP archives remain available for Sparkle's signed updates.
 
-ScreenCaptureKit produces an explicitly sRGB, SDR BGRA buffer. Both the sampled RGB/HEX value and the 17 × 17 magnifier use those same bytes, avoiding a second display-profile conversion. Compare with Digital Color Meter's **Display in sRGB** mode; native display-profile numbers can differ. HDR luminance outside SDR sRGB is not preserved. Sampling pauses over the app's own windows. Clicking elsewhere pins the color; clicking again resumes. Open Settings from the app menu with `Control+,`.
+By default, authorize Screen Recording in System Settings and the app automatically samples the entire display under the pointer, switching displays as the pointer moves. macOS may independently request renewed direct-capture access; the app cannot suppress these OS prompts. Disable **Start screen sampling automatically** in Settings to use the system picker on macOS 14+, or use **Choose a screen** for the current session. The app continues to use ScreenCaptureKit and does not capture audio.
+
+ScreenCaptureKit produces an explicitly sRGB, SDR BGRA buffer. Both the sampled RGB/HEX value and the 17 × 17 magnifier use those same bytes, avoiding a second display-profile conversion. Compare with Digital Color Meter's **Display in sRGB** mode; native display-profile numbers can differ. HDR luminance outside SDR sRGB is not preserved. Sampling pauses over the app's own windows. Clicking elsewhere pins the color; clicking again resumes. Open the centered Settings popup with `Command+,`; click outside it or press Escape to dismiss it.
 
 The build script creates an ad-hoc signed `.app`. This does not remove macOS's first-open security warning; Developer ID signing and notarization require a paid Apple Developer Program membership. Ad-hoc signatures can also cause Screen Recording permission to be requested again after app updates.
 

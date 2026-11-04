@@ -28,7 +28,7 @@ struct PixelPinMacApp: App {
                     model.settingsOpen = true
                     NSApp.activate(ignoringOtherApps: true)
                 }
-                .keyboardShortcut(",", modifiers: [.control])
+                .keyboardShortcut(",", modifiers: [.command])
             }
             CommandGroup(after: .appInfo) {
                 Button(model.language.text("업데이트 확인…", "Check for Updates…", "检查更新…")) {
@@ -63,11 +63,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         super.init()
     }
 
-    var canCheckForUpdates: Bool { updaterController != nil }
+    var canCheckForUpdates: Bool { updaterController != nil && AppInstallation.isInstalled() }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
-        updaterController?.startUpdater()
+        if AppInstallation.isInstalled() { updaterController?.startUpdater() }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { self.keepWindowsFloating() }
     }
 
@@ -175,6 +175,12 @@ final class PickerModel: ObservableObject {
     @Published var frozen = false
     @Published var message = "Ready"
     @Published var settingsOpen = false
+    @Published var automaticCapture = UserDefaults.standard.object(forKey: "automaticCapture") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(automaticCapture, forKey: "automaticCapture")
+            startCapture()
+        }
+    }
     @Published var theme = AppTheme(rawValue: UserDefaults.standard.string(forKey: "theme") ?? "system") ?? .system {
         didSet { UserDefaults.standard.set(theme.rawValue, forKey: "theme") }
     }
@@ -196,8 +202,12 @@ final class PickerModel: ObservableObject {
     @Published var markerOffset = CGSize.zero
 
     init() {
-        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in
-            Task { @MainActor in self?.toggleFreeze() }
+        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.settingsOpen { self.settingsOpen = false }
+                else if event.type == .leftMouseDown { self.toggleFreeze() }
+            }
         }
         timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.sample() }
@@ -209,10 +219,11 @@ final class PickerModel: ObservableObject {
             self?.sample()
         }
         capture.onState = { [weak self] state in
-            self?.isSelectingScreen = state == "selectScreen"
+            self?.isSelectingScreen = state == "selectScreen" || state == "connecting"
+            if state == "captureError" || state == "permission" || state == "connecting" { self?.latestRaster = nil }
             self?.message = state
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.selectScreen() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.startCapture() }
     }
 
     deinit {
@@ -221,7 +232,7 @@ final class PickerModel: ObservableObject {
     }
 
     func toggleFreeze() {
-        guard !isSelectingScreen else { return }
+        guard !isSelectingScreen, !settingsOpen else { return }
         guard loupe != nil else { message = "pickFirst"; return }
         frozen.toggle()
         message = frozen ? "pinned" : "live"
@@ -236,7 +247,16 @@ final class PickerModel: ObservableObject {
         capture.selectScreen()
     }
 
+    func startCapture() {
+        frozen = false
+        isSelectingScreen = true
+        latestRaster = nil
+        if automaticCapture { capture.startAutomatically() }
+        else { selectScreen() }
+    }
+
     func sample() {
+        if !frozen { capture.followPointer() }
         guard !frozen, !isSelectingScreen, let raster = latestRaster else { return }
         let cursor = NSEvent.mouseLocation
         guard captureFrame.contains(cursor) else { message = "otherScreen"; return }
@@ -293,6 +313,15 @@ struct PickerView: View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
+                    if !AppInstallation.isInstalled() {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(language.text("자동 업데이트를 사용하려면 Pixel Pin을 응용 프로그램 폴더에 설치해 주세요.", "Move Pixel Pin to Applications to enable updates.", "请将 Pixel Pin 移到“应用程序”文件夹，以使用自动更新。"))
+                            Button(language.text("응용 프로그램 폴더 열기", "Open Applications", "打开应用程序文件夹")) {
+                                NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications"))
+                            }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
+                        }.font(.system(size: 11)).foregroundStyle(p.ink).padding(12)
+                            .background(p.surface, in: RoundedRectangle(cornerRadius: 12))
+                    }
                     Text(language.text("마음에 든 색, 그대로.", "Pick it. Pin it.", "看中的颜色，一键固定。"))
                         .font(.system(size: 19, weight: .semibold, design: .rounded)).foregroundStyle(p.ink)
                     Text(language.text("커서를 움직여 화면의 픽셀을 찾으세요.", "Move your pointer to pick a pixel.", "移动光标，选取屏幕上的像素颜色。"))
@@ -346,7 +375,14 @@ struct PickerView: View {
                     }.font(.system(size: 10)).foregroundStyle(p.muted)
                     Button(language.text("측정할 화면 선택", "Choose a screen", "选择取色屏幕")) { model.selectScreen() }
                         .font(.system(size: 11, weight: .medium)).buttonStyle(.plain).foregroundStyle(Color.accentColor)
-                    if model.message == "selectScreen" || model.message == "captureError" {
+                    if model.message == "permission" {
+                        Text(language.text("시스템 설정에서 화면 기록 접근을 허용한 뒤 다시 시도해 주세요. macOS에서 앱 재시작을 요구할 수 있습니다.", "Allow Screen Recording in System Settings, then try again. macOS may require you to reopen the app.", "请在系统设置中允许屏幕录制，然后重试。macOS 可能需要重新打开应用。"))
+                            .font(.system(size: 10)).foregroundStyle(p.muted)
+                        HStack {
+                            Link(language.text("시스템 설정 열기", "Open System Settings", "打开系统设置"), destination: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+                            Button(language.text("다시 시도", "Try again", "重试")) { model.startCapture() }
+                        }.font(.system(size: 11))
+                    } else if model.message == "selectScreen" || model.message == "captureError" {
                         Text(language.text(
                             "macOS 화면 선택 창에서 측정할 디스플레이를 선택해 주세요. 선택을 취소했다면 위 버튼으로 다시 열 수 있습니다.",
                             "Choose the display to sample in the macOS screen picker. Use the button above to reopen it if you cancelled.",
@@ -391,9 +427,17 @@ struct PickerView: View {
                 .accessibilityLabel(language.text("설정", "Settings", "设置"))
             }
         }
-        .overlay(alignment: .topTrailing) {
-            if model.settingsOpen { settingsPanel.padding(.top, 12).padding(.trailing, 10).zIndex(2) }
+        .overlay {
+            if model.settingsOpen {
+                ZStack {
+                    Color.black.opacity(0.25).contentShape(Rectangle()).onTapGesture { model.settingsOpen = false }
+                    settingsPanel
+                        .background(OutsideClickDismissal { model.settingsOpen = false })
+                        .onTapGesture { }
+                }
+            }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in model.settingsOpen = false }
     }
 
     private var footer: some View {
@@ -403,7 +447,13 @@ struct PickerView: View {
 
     private var settingsPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(language.text("설정", "Settings", "设置")).font(.system(size: 13, weight: .bold)).foregroundStyle(p.ink)
+            HStack {
+                Text(language.text("설정", "Settings", "设置")).font(.system(size: 14, weight: .bold)).foregroundStyle(p.ink)
+                Spacer()
+                Button { model.settingsOpen = false } label: { Image(systemName: "xmark") }
+                    .buttonStyle(.plain).keyboardShortcut(.cancelAction)
+                    .accessibilityLabel(language.text("설정 닫기", "Close settings", "关闭设置"))
+            }
             settingRow(language.text("화면 모드", "Appearance", "外观")) {
                 Picker("", selection: $model.theme) { ForEach(AppTheme.allCases) { Text($0.text(language)).tag($0) } }.labelsHidden().pickerStyle(.menu)
             }
@@ -415,15 +465,19 @@ struct PickerView: View {
             }
             Text(language.text("CMYK는 인쇄 프로파일이 없는 참고값입니다.", "CMYK is a reference value without a print profile.", "CMYK 为未套用印刷配置文件的参考值。"))
                 .font(.system(size: 9)).foregroundStyle(p.muted)
+            Toggle(language.text("시작 시 전체 화면 자동 측정", "Start screen sampling automatically", "自动开始全屏取色"), isOn: $model.automaticCapture)
+                .font(.system(size: 11)).foregroundStyle(p.ink).toggleStyle(.switch)
+            Text(language.text("선택창 없이 커서가 있는 화면을 측정합니다. macOS가 접근 재승인을 요청할 수 있습니다.", "Samples the display under your pointer without the picker. macOS may ask you to renew access.", "无需选择屏幕，自动跟随光标取色。macOS 可能会要求重新授权。"))
+                .font(.system(size: 10)).foregroundStyle(p.muted).fixedSize(horizontal: false, vertical: true)
             settingRow(language.text("업데이트", "Updates", "更新")) {
                 Button(language.text("업데이트 확인", "Check now", "立即检查"), action: onCheckForUpdates)
                     .disabled(!updatesEnabled)
             }
             if !updatesEnabled {
                 Text(language.text(
-                    "자동 업데이트는 서명 키를 등록한 다음 안정 버전부터 사용할 수 있습니다.",
-                    "Update checks will be enabled for stable releases after the signing key is configured.",
-                    "配置签名密钥后，稳定版即可启用自动更新。"
+                    AppInstallation.isInstalled() ? "이 빌드에서는 업데이트 확인을 사용할 수 없습니다. 공식 릴리즈를 설치해 주세요." : "업데이트하려면 응용 프로그램 폴더에 설치한 앱을 다시 열어 주세요.",
+                    AppInstallation.isInstalled() ? "Update checks are unavailable in this build. Install an official release." : "Reopen Pixel Pin from Applications to enable updates.",
+                    AppInstallation.isInstalled() ? "此版本无法检查更新，请安装官方发行版。" : "请从“应用程序”文件夹重新打开 Pixel Pin 以启用更新。"
                 )).font(.system(size: 9)).foregroundStyle(p.muted).fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 8) {
@@ -433,7 +487,7 @@ struct PickerView: View {
                 }.buttonStyle(.plain)
                 Spacer(minLength: 0)
                 Button(language.text("기본값 복원", "Restore defaults", "恢复默认设置")) {
-                    model.theme = .system; model.language = .korean; model.format = .hex
+                    model.theme = .system; model.language = .korean; model.format = .hex; model.automaticCapture = true
                 }.buttonStyle(.plain)
             }.font(.system(size: 9, weight: .medium)).foregroundStyle(Color.accentColor)
         }.padding(14).frame(width: 300, alignment: .leading).background(p.surface, in: RoundedRectangle(cornerRadius: 14))
@@ -451,6 +505,7 @@ struct PickerView: View {
 
     private var statusText: String {
         switch model.message {
+        case "connecting": return language.text("화면 측정 연결 중", "Connecting to display", "正在连接屏幕")
         case "selectScreen": return language.text("측정할 화면을 선택해 주세요", "Choose a screen to sample", "请选择取色屏幕")
         case "captureError": return language.text("화면 캡처가 중단되었습니다. 화면을 다시 선택해 주세요", "Capture stopped. Choose a screen again.", "取色已中断，请重新选择屏幕")
         case "otherScreen": return language.text("선택한 화면으로 커서를 이동하세요", "Move the pointer to the selected display", "请将光标移至所选屏幕")
