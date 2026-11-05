@@ -31,6 +31,7 @@ PY
 ditto -x -k "$WORK/source/$SOURCE_ARCHIVE" "$WORK/source/app"
 SOURCE_APP="$WORK/source/app/Pixel Pin.app"
 codesign --verify --deep --strict "$SOURCE_APP"
+echo 'Released source bundle signature verified.'
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$SOURCE_APP/Contents/Info.plist")" = com.teamhjd.pixelpin
 test "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$SOURCE_APP/Contents/Info.plist")" = "$SPARKLE_ED_PUBLIC_KEY"
 FEED_TAG="macos-signing-test-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-feed"
@@ -44,6 +45,7 @@ for version in 1.2.3 1.2.4; do
   /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $version" "$app/Contents/Info.plist"
   /usr/libexec/PlistBuddy -c "Set :SUFeedURL $FEED" "$app/Contents/Info.plist"
   # Nested Sparkle components are unchanged and retain their valid signatures.
+  echo "Signing test app $version with the shared temporary identity."
   codesign --force --sign "$MACOS_TEST_IDENTITY" --keychain "$MACOS_TEST_KEYCHAIN" --timestamp=none \
     --requirements "=designated => $REQ" "$app"
   codesign --verify --deep --strict "$app"

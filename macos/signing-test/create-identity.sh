@@ -24,6 +24,8 @@ echo "::add-mask::$MACOS_EPHEMERAL_P12_PASSWORD"
 security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
 security set-keychain-settings -lut 3600 "$KEYCHAIN"
 security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+security list-keychains -d user -s "$KEYCHAIN" "$HOME/Library/Keychains/login.keychain-db"
+security default-keychain -d user -s "$KEYCHAIN"
 security import "$IDENTITY_DIR/identity.p12" -k "$KEYCHAIN" -P "$MACOS_EPHEMERAL_P12_PASSWORD" -T /usr/bin/codesign
 echo 'Imported identity; configuring non-interactive key access.'
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
