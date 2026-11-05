@@ -1,0 +1,78 @@
+name: Test fixed macOS signing identity
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: macos-fixed-signing-test
+  cancel-in-progress: false
+jobs:
+  prepare-test:
+    runs-on: macos-15-intel
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      GH_TOKEN: ${{ github.token }}
+      SPARKLE_ED_PUBLIC_KEY: ${{ vars.SPARKLE_ED_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Check scripts and installer dependencies
+        run: |
+          for script in macos/signing-test/*.sh; do bash -n "$script"; done
+          python3 -m pip install --disable-pip-version-check --require-hashes -r macos/installer/requirements.txt
+      - name: Create one ephemeral certificate shared by both test versions
+        run: bash macos/signing-test/create-identity.sh
+      - name: Authenticate source and verify both versions have compatible identities
+        run: bash macos/signing-test/prepare-pair.sh
+      - name: Package test apps and sign the isolated update feed
+        id: pair
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: bash macos/signing-test/package-pair.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-fixed-signing-test
+          path: ${{ steps.pair.outputs.artifact_dir }}
+          retention-days: 14
+          if-no-files-found: error
+          overwrite: true
+      - name: Publish opt-in test releases and their dedicated update feed
+        env:
+          BASELINE_TAG: ${{ steps.pair.outputs.baseline_tag }}
+          UPDATE_TAG: ${{ steps.pair.outputs.update_tag }}
+          ARTIFACT_DIR: ${{ steps.pair.outputs.artifact_dir }}
+        run: |
+          notes="$RUNNER_TEMP/signing-test-notes.md"
+          cat > "$notes" <<'NOTES'
+          Experimental self-signed app identity test. Not a Developer ID or notarized release.
+
+          1. Quit Pixel Pin with Command-Q. Install the baseline v1.2.3 app in Applications.
+          2. Register Screen Recording permission once for this new identity, then confirm live sampling works.
+          3. Choose Check for Updates to install v1.2.4 from the dedicated test feed.
+          4. Without removing or re-granting permission, check whether live sampling still works after updating and reopening.
+
+          Both builds use the same certificate-bound designated requirement. CI verifies the cryptographic identity in both directions; actual macOS permission retention still needs on-device testing.
+
+          Stable and beta production update feeds are unchanged. To leave the test, manually reinstall the official app from pixelpin.teamhjd.com.
+          NOTES
+          gh release create "$BASELINE_TAG" "$ARTIFACT_DIR/Pixel-Pin-$BASELINE_TAG-macos-universal."* \
+            "$ARTIFACT_DIR/signing-verification.txt" "$ARTIFACT_DIR/certificate.pem" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title 'Pixel Pin v1.2.3 — fixed identity test baseline' --notes-file "$notes"
+          gh release create "$UPDATE_TAG" "$ARTIFACT_DIR/Pixel-Pin-$UPDATE_TAG-macos-universal."* "$ARTIFACT_DIR/appcast.xml" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title 'Pixel Pin v1.2.4 — fixed identity test update' --notes-file "$notes"
+          gh release create "$MACOS_TEST_FEED_TAG" "$ARTIFACT_DIR/appcast.xml" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title 'Pixel Pin isolated signing test feed' --notes-file "$notes"
+      - name: Remove the test keychain and temporary certificate files
+        if: always()
+        run: |
+          security remove-trusted-cert "$RUNNER_TEMP/pixelpin-test-identity/certificate.pem" > /dev/null 2>&1 || true
+          security delete-keychain "$RUNNER_TEMP/pixelpin-signing-test.keychain-db" > /dev/null 2>&1 || true
+          rm -f "$RUNNER_TEMP/pixelpin-test-identity/key.pem" "$RUNNER_TEMP/pixelpin-test-identity/identity.p12" "$RUNNER_TEMP/pixelpin-test-identity/certificate.pem"
