@@ -74,11 +74,6 @@ fi
 /usr/bin/plutil -lint "$APP/Contents/Info.plist"
 lipo "$APP/Contents/MacOS/PixelPin" -verify_arch arm64 x86_64
 lipo "$APP/Contents/Frameworks/Sparkle.framework/Sparkle" -verify_arch arm64 x86_64
-# Give this exact build a stable app identifier for Screen Recording consent.
-# Ad-hoc signatures are tied to the binary, so permission can still need to be
-# granted again after an app update. A Developer ID signature is required for
-# a durable identity across releases and notarized distribution.
-codesign --force --deep --sign - "$APP"
-codesign --verify --deep --strict "$APP"
+bash "$ROOT/ci/sign-app.sh" "$APP"
 echo "Created $APP"
-echo "This build uses an ad-hoc signature; Developer ID signing and notarization are still required for public distribution."
+echo "Developer ID signing and notarization are separate from fixed self-signing."

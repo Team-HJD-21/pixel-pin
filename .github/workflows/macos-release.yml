@@ -53,12 +53,11 @@ jobs:
           python-version: '3.13'
       - name: Validate shell scripts
         run: |
-          bash -n macos/build-app.sh
-          bash -n macos/make-appcast.sh
-          bash -n macos/make-dmg.sh
+          for script in macos/*.sh macos/ci/*.sh; do bash -n "$script"; done
       - name: Test compiled-input reuse safety
         run: |
           python3 -m py_compile macos/installer/layout.py
+          python3 -m py_compile macos/ci/cleanup-signing.py
           python3 -m unittest discover -s macos/ci -v
       - name: Validate workflow with pinned actionlint
         env:
@@ -97,7 +96,7 @@ jobs:
           xcodebuild -version
           swift --version
           swiftc -parse macos/installer/background.swift
-          for script in macos/build-app.sh macos/make-appcast.sh macos/make-dmg.sh; do bash -n "$script"; done
+          for script in macos/*.sh macos/ci/*.sh; do bash -n "$script"; done
           swift package --package-path macos dump-package > /dev/null
       - name: Restore Swift package download cache
         uses: actions/cache@v4
@@ -127,8 +126,10 @@ jobs:
         env:
           PUBLIC_KEY: ${{ vars.SPARKLE_ED_PUBLIC_KEY }}
           PRIVATE_KEY_READY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY != '' }}
+          SIGNING_KEY_READY: ${{ secrets.MACOS_SIGNING_P12_BASE64 != '' }}
+          SIGNING_PASSWORD_READY: ${{ secrets.MACOS_SIGNING_P12_PASSWORD != '' }}
         run: |
-          version=1.2.1
+          version=1.2.5
           feed_tag=macos-updates
           public_key=''
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -139,6 +140,11 @@ jobs:
               echo '::error::Both Sparkle repository keys are required for a release.'
               exit 1
             fi
+            if [[ "$SIGNING_KEY_READY" != true || "$SIGNING_PASSWORD_READY" != true ]]; then
+              echo '::error::The persistent macOS signing certificate and password are required for a release.'
+              exit 1
+            fi
+            test -f macos/ci/signing-certificate.pem
             if [[ ! "$PUBLIC_KEY" =~ ^[A-Za-z0-9+/]{43}=$ ]]; then
               echo '::error::The Sparkle public key must be the base64 key string only.'
               exit 1
@@ -151,11 +157,13 @@ jobs:
             echo "MACOS_BUILD_NUMBER=$GITHUB_RUN_NUMBER"
             echo "MACOS_UPDATE_FEED_URL=https://github.com/$GITHUB_REPOSITORY/releases/download/$feed_tag/appcast.xml"
             echo "SPARKLE_ED_PUBLIC_KEY=$public_key"
+            echo "MACOS_REQUIRE_FIXED_SIGNING=$([[ "$GITHUB_REF" == refs/tags/v* ]] && echo true || echo false)"
           } >> "$GITHUB_ENV"
           {
             echo "feed_tag=$feed_tag"
             echo "archive=Pixel-Pin-${GITHUB_REF_NAME//\//-}-macos-universal.zip"
             echo "dmg=Pixel-Pin-${GITHUB_REF_NAME//\//-}-macos-universal.dmg"
+            echo "signing_ready=$([[ "$SIGNING_KEY_READY" == true && "$SIGNING_PASSWORD_READY" == true ]] && echo true || echo false)"
           } >> "$GITHUB_OUTPUT"
       - name: Test sRGB sampling and loupe consistency
         if: steps.reuse.outputs.hit != 'true'
@@ -166,6 +174,13 @@ jobs:
       - name: Build Intel executable
         if: steps.reuse.outputs.hit != 'true'
         run: bash macos/build-app.sh "$PWD/macos/build" x86_64
+      - name: Import pinned persistent signing identity
+        if: github.event_name != 'pull_request' && steps.config.outputs.signing_ready == 'true'
+        timeout-minutes: 2
+        env:
+          MACOS_SIGNING_P12_BASE64: ${{ secrets.MACOS_SIGNING_P12_BASE64 }}
+          MACOS_SIGNING_P12_PASSWORD: ${{ secrets.MACOS_SIGNING_P12_PASSWORD }}
+        run: bash macos/ci/import-signing-identity.sh
       - name: Assemble and validate universal app bundle
         run: |
           bash macos/build-app.sh "$PWD/macos/build" package
@@ -235,11 +250,14 @@ jobs:
             - HEX, RGB, swatches, and the magnifier share one sRGB pixel buffer.
             - Opens settings with Command-comma in a centered popup. Click outside or press Escape to close it.
             - The close button minimizes to the Dock by default; Settings can change it to quit. Command-Q always quits.
+            - Uses a fixed, certificate-bound self-signing identity to retain the app's identity across updates. Permission retention was confirmed in an on-device update test.
             - Includes signed Sparkle updates with separate beta and stable feeds.
+
+            Upgrading from an older ad-hoc build or the isolated signing test changes the app identity once. You may need to re-register Screen Recording permission for this first transition. Future releases reuse the same certificate.
 
             macOS may still ask to renew direct screen access; the app cannot permanently suppress system permission prompts. Automatic sampling can be disabled in settings to use the system picker instead. For comparison, set Digital Color Meter to sRGB and its smallest aperture.
 
-            Sparkle authenticates updates. This app still uses an ad-hoc Apple code signature and is not Developer ID signed or notarized, so the first-open macOS security warning may remain.
+            Sparkle authenticates updates. The app is self-signed, not Apple Developer ID signed or notarized, so macOS first-open security warnings may remain.
           files: |
             ${{ steps.config.outputs.archive }}
             ${{ steps.config.outputs.archive }}.sha256
@@ -261,6 +279,10 @@ jobs:
           if [[ "$FEED_TAG" == macos-updates ]] && gh release view macos-beta-updates --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release upload macos-beta-updates macos/update-feed/appcast.xml --repo "$GITHUB_REPOSITORY" --clobber
           fi
+      - name: Remove temporary signing keychain and CI trust
+        if: always() && github.event_name != 'pull_request' && steps.config.outputs.signing_ready == 'true'
+        timeout-minutes: 1
+        run: python3 macos/ci/cleanup-signing.py
   refresh-site:
     needs: build
     if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')

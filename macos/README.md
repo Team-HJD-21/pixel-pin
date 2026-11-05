@@ -19,7 +19,7 @@ By default, authorize Screen Recording in System Settings and the app automatica
 
 ScreenCaptureKit produces an explicitly sRGB, SDR BGRA buffer. Both the sampled RGB/HEX value and the 17 × 17 magnifier use those same bytes, avoiding a second display-profile conversion. Compare with Digital Color Meter's **Display in sRGB** mode; native display-profile numbers can differ. HDR luminance outside SDR sRGB is not preserved. Sampling pauses over the app's own windows. Clicking elsewhere pins the color; clicking again resumes. Open the centered Settings popup with `Command+,`; click outside it or press Escape to dismiss it.
 
-The build script creates an ad-hoc signed `.app`. This does not remove macOS's first-open security warning; Developer ID signing and notarization require a paid Apple Developer Program membership. Ad-hoc signatures can also cause Screen Recording permission to be requested again after app updates.
+Local and PR builds use an ad-hoc signature. Official releases from v1.2.5 use a persistent self-signing certificate and an explicit designated requirement bound to its leaf fingerprint. Permission retention across two versions was confirmed by the maintainer on a Mac. Transitioning from an old ad-hoc build or the isolated test identity may require one permission re-registration. Self-signing does not remove macOS's first-open warning and is not Developer ID signing or notarization.
 
 The red close button minimizes the app to the Dock by default. Change **Close button** to **Quit Pixel Pin** in Settings to quit instead. This preference persists between launches; `Command+Q` and the Quit menu command always quit the app.
 
@@ -44,7 +44,13 @@ Stable releases are also published to the beta update feed so existing beta inst
 
 ## CI checks
 
-Ubuntu first validates the workflow using checksum-verified actionlint 1.7.12 and checks Bash syntax. macOS 15 Intel uses Xcode 16.4 explicitly, runs the raster tests, builds Apple silicon and Intel in separate steps, then validates the complete plist, both executable architectures, the embedded framework, the ad-hoc signature, and the ZIP archive. Release jobs generate and validate the signed appcast before uploading any release files. Outdated branch jobs are cancelled; tagged release jobs remain independent.
+Ubuntu first validates the workflow using checksum-verified actionlint 1.7.12 and checks Bash syntax. macOS 15 Intel uses Xcode 16.4 explicitly, runs the raster tests, builds Apple silicon and Intel in separate steps, then validates the complete plist, both executable architectures, the embedded framework, the app signature, and the ZIP archive. Release jobs generate and validate the signed appcast before uploading any release files. Outdated branch jobs are cancelled; tagged release jobs remain independent.
+
+### Persistent signing identity
+
+The repository secrets `MACOS_SIGNING_P12_BASE64` (base64-encoded encrypted PKCS#12) and `MACOS_SIGNING_P12_PASSWORD` contain the fixed app-signing identity. Its public certificate is pinned in `ci/signing-certificate.pem`. The importer compares the certificate bytes before importing, checks its remaining validity and enables noninteractive code-signing access only on the disposable CI runner. Signing preserves the nested Sparkle signatures and uses `identifier "com.teamhjd.pixelpin" and certificate leaf = H"<fingerprint>"`. Release jobs refuse an ad-hoc fallback. Temporary keychains and CI trust entries are cleaned even after failures.
+
+Do not regenerate or replace this certificate between releases. Keep the encrypted PKCS#12 and its password backup securely outside the checkout; losing the identity or rotating it may require users to register permission again. Private keys are excluded from source, artifacts and compilation snapshots. The Sparkle Ed25519 key remains a separate update-authentication key. This fixed certificate does not make the app notarized or remove Gatekeeper warnings.
 
 Successful push builds retain a checksummed snapshot of both compiled executables and the Sparkle tools for 14 days. A later tag or rerun on the **exact same commit** reuses these inputs after checking the workflow, repository, successful run, compiler fingerprint, source SHA and architectures. A tag waits up to eight minutes for an earlier same-commit build rather than compiling concurrently. Missing, expired or incompatible inputs fall back to the full test/build path. Release version, build number, update feed and public key are always applied afresh when assembling the app; bundle, DMG and update-signature checks still run. Private signing keys are never included in the snapshot.
 
