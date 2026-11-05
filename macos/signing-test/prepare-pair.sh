@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+trap 'echo "::error file=macos/signing-test/prepare-pair.sh,line=$LINENO::Signing test preparation failed" >&2' ERR
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$RUNNER_TEMP/pixelpin-permission-test"
 SOURCE_TAG=v1.2.2
@@ -50,7 +51,8 @@ for version in 1.2.3 1.2.4; do
     --requirements "=designated => $REQ" "$app"
   codesign --verify --deep --strict "$app"
   codesign --verify --strict -R "=$REQ" "$app"
-  codesign -d -r- "$app" 2> "$WORK/$version/identity.txt"
+  codesign -d -r- "$app" > "$WORK/$version/identity.txt" 2>&1
+  grep -q '^designated => ' "$WORK/$version/identity.txt"
 done
 OLD_REQ="$(sed -n 's/^designated => //p' "$WORK/1.2.3/identity.txt")"
 NEW_REQ="$(sed -n 's/^designated => //p' "$WORK/1.2.4/identity.txt")"

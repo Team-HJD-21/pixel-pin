@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+trap 'echo "::error file=macos/signing-test/package-pair.sh,line=$LINENO::Signing test packaging failed" >&2' ERR
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$RUNNER_TEMP/pixelpin-test-artifacts"
 mkdir -p "$OUT" "$ROOT/build"

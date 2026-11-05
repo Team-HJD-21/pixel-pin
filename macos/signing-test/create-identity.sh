@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+trap 'echo "::error file=macos/signing-test/create-identity.sh,line=$LINENO::Temporary signing identity setup failed" >&2' ERR
 umask 077
 IDENTITY_DIR="$RUNNER_TEMP/pixelpin-test-identity"
 mkdir -p "$IDENTITY_DIR"
