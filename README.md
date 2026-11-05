@@ -35,6 +35,7 @@ Windows를 위한 작고 깔끔한 픽셀 컬러 피커. Made by [TeamHJD](https
 | **라이트 / 다크 / 기기 설정** | 시스템의 화면 모드 변경도 따라갑니다. |
 | **3개 언어** | 한국어, English, 简体中文. 중국어 버튼과 안내도 한자로 표시합니다. |
 | **작은 편의 기능** | 항상 위에 표시, 최근 색상 8개, 색에 맞춰 바뀌는 복사 버튼 글자. |
+| **미니 모드** | 색상·현재 포맷 값·복사·고정/재개만 담은 작은 창. 사용한 모드를 기억합니다. |
 
 계정이나 설치 과정 없이 실행합니다. 앱 자체는 화면 이미지나 색상 기록을 서버로 전송하지 않습니다. 제작자 링크를 누르면 기본 브라우저에서 TeamHJD 사이트가 열립니다.
 
@@ -54,6 +55,7 @@ Windows를 위한 작고 깔끔한 픽셀 컬러 피커. Made by [TeamHJD](https
 | :--- | :--- |
 | `Ctrl` + `Shift` + `C` | 현재 색상 복사 |
 | `Ctrl` + `Shift` + `Space` | 색상 고정 / 측정 재개 |
+| `Ctrl` + `Shift` + `M` | 기본 / 미니 모드 전환 (앱에 포커스가 있을 때) |
 
 설정창과 앱 내부 버튼을 누를 때는 측정 상태가 전환되지 않습니다. 최근 색상도 현재 선택한 포맷으로 다시 복사합니다. 단축키가 다른 앱과 충돌하면 앱 안의 버튼을 사용하세요.
 
@@ -66,6 +68,7 @@ Windows를 위한 작고 깔끔한 픽셀 컬러 피커. Made by [TeamHJD](https
 - **화면 모드:** 기기 설정 따르기 / 라이트 모드 / 다크 모드
 - **언어:** 한국어 / English / 简体中文
 - **포맷:** HEX / RGB / HSL / HSV / CMYK
+- **창 모드:** 기본 모드 / 미니 모드. 제목 표시줄의 창 모드 버튼으로도 바꿀 수 있습니다. macOS에서는 `⌘ + Shift + M`으로 전환하며, 미니 모드에서 설정을 열면 창을 잠시 넓혔다가 닫을 때 돌아옵니다.
 
 <div align="center"><img src="assets/settings.png" width="280" alt="한국어 설정창" /> <img src="assets/settings-dark-zh.png" width="280" alt="중국어 다크 모드 설정창" /></div>
 
@@ -111,7 +114,7 @@ dotnet publish PixelPin.csproj -c Release -r win-x64 --self-contained true `
 
 [이용약관](https://pixelpin.teamhjd.com/terms/) · [개인정보처리방침](https://pixelpin.teamhjd.com/privacy/) · [후원 및 결제 안내](https://pixelpin.teamhjd.com/support/)
 
-설정의 **최근 색상 삭제**는 현재·이전 버전의 색상 기록을 지웁니다. **설정 기본값으로 복원**은 화면 모드·언어·포맷만 초기화하며 최근 색상과 Windows 클립보드는 유지합니다. 기존 v1.1.0 배포본에는 이 버튼이 없으므로 새 앱 배포 전에는 앱을 종료한 뒤 `%LOCALAPPDATA%\PixelPin`의 파일을 직접 삭제해 주세요. 이전 버전의 기록은 `%LOCALAPPDATA%\DigitalColorMeter\history.json`에도 남을 수 있습니다.
+설정의 **최근 색상 삭제**는 현재·이전 버전의 색상 기록을 지웁니다. **설정 기본값으로 복원**은 화면 모드·언어·포맷·창 모드를 초기화하며 최근 색상과 Windows 클립보드는 유지합니다. 기존 v1.1.0 배포본에는 이 버튼이 없으므로 새 앱 배포 전에는 앱을 종료한 뒤 `%LOCALAPPDATA%\PixelPin`의 파일을 직접 삭제해 주세요. 이전 버전의 기록은 `%LOCALAPPDATA%\DigitalColorMeter\history.json`에도 남을 수 있습니다.
 
 Pixel Pin은 무료로 사용할 수 있습니다. Lemon Squeezy를 통한 선택 결제는 검토 중이며 아직 활성화하지 않았습니다. 상품 구성·개인정보 처리·환불 조건과 필요한 운영자 정보를 확정한 뒤 안내합니다.
 

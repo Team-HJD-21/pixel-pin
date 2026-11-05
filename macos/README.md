@@ -2,6 +2,8 @@
 
 This is the native macOS implementation. It mirrors the Windows app's floating picker, live pixel sampling, click-to-pin/resume, HEX/RGB/HSL/HSV/CMYK output, appearance/language settings, recent colors, clipboard copy, and TeamHJD link.
 
+Use the title-bar window-mode button, **Mini mode** in Settings, or `Command+Shift+M` to switch to a small floating picker. It keeps the same sampled color, selected format, clipboard action and pin/resume state, and remembers the last mode. Native macOS window controls remain available. Settings temporarily expands the window and returns to mini mode when dismissed. Window layout checks cover returning to standard size, short displays and displays with negative desktop coordinates.
+
 ## Build on a Mac
 
 Requires Xcode Command Line Tools and macOS 13 or later:

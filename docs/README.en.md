@@ -8,7 +8,7 @@
 
 [Terms of Use](https://pixelpin.teamhjd.com/en/terms/) · [Privacy Policy](https://pixelpin.teamhjd.com/en/privacy/) · [Support & payments](https://pixelpin.teamhjd.com/en/support/)
 
-Updated builds add **Clear recent colors** and **Restore default preferences** to Settings. Clearing colors removes current and legacy history; restoring preferences resets only appearance, language, and format. Neither clears the Windows clipboard. With v1.1.0, close the app and manually remove local files in `%LOCALAPPDATA%\PixelPin`, and any legacy `%LOCALAPPDATA%\DigitalColorMeter\history.json`, if you want to erase them.
+Updated builds add **Clear recent colors** and **Restore default preferences** to Settings. Clearing colors removes current and legacy history; restoring preferences resets appearance, language, format, and window mode. Neither clears the Windows clipboard. With v1.1.0, close the app and manually remove local files in `%LOCALAPPDATA%\PixelPin`, and any legacy `%LOCALAPPDATA%\DigitalColorMeter\history.json`, if you want to erase them.
 
 The app is free. Optional Lemon Squeezy purchases are under consideration and are not enabled. Product, seller, privacy, and refund details must be confirmed before payment is offered.
 
@@ -35,6 +35,7 @@ A small, clean Windows color picker by [TeamHJD](https://teamhjd.com/).
 | Appearance | Light, dark, or follow device settings, including live system theme changes. |
 | Three languages | 한국어, English, and 简体中文, including translated buttons and help text. |
 | Everyday conveniences | Always-on-top window, eight recent colors, and readable copy-button text. |
+| Mini mode | A small window with the color, formatted value, copy and pin/resume controls. Remembers your last mode. |
 
 No account or installer is required. The app does not send screen images or color history to a server. The TeamHJD link opens in your default browser only when clicked.
 
@@ -54,6 +55,7 @@ Move the pointer outside the app to find a color. Left-click the screen to pin i
 | :--- | :--- |
 | `Ctrl + Shift + C` | Copy the current color |
 | `Ctrl + Shift + Space` | Pin / resume picking |
+| `Ctrl + Shift + M` | Switch between standard and mini mode while the app is focused |
 
 Clicks inside the app or settings window do not toggle picking. Recent colors are copied in the currently selected format. If another app owns a shortcut, use the on-screen buttons.
 
@@ -66,6 +68,7 @@ Open the **settings icon in the top-right corner**. Changes apply immediately an
 - **Appearance:** Use device settings / Light / Dark
 - **Language:** 한국어 / English / 简体中文
 - **Color format:** HEX / RGB / HSL / HSV / CMYK
+- **Window mode:** Standard / Mini. You can also use the window-mode button in the title bar. On macOS, press `Command + Shift + M`; opening Settings temporarily expands the mini window and closing it restores the compact view.
 
 | Format | Example | Notes |
 | :--- | :--- | :--- |

@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -23,22 +24,32 @@ public partial class MainWindow : Window
     private Native.MouseHookProc? mouseHookCallback;
     private SettingsWindow? settingsWindow;
     private bool frozen, hasSample, registeredCopy, registeredFreeze, copiedIndicator;
+    private bool miniMode;
+    private Size standardSize;
     private Color current = Color.FromRgb(84, 124, 240);
     private string statusKey = "Live", noticeKey = "Ready";
     private string Hex => ColorFormatting.Hex(current);
     private string FormatName => SettingsStore.Current.Format.ToString().ToUpperInvariant();
 
-    public MainWindow()
+    public MainWindow() : this(true) { }
+    internal MainWindow(bool restoreHistory)
     {
         InitializeComponent();
         Height = Math.Min(Height, SystemParameters.WorkArea.Height);
+        standardSize = new Size(Width, Height);
         Loupe.Source = preview;
-        LoadHistory();
+        if (restoreHistory) LoadHistory();
         SettingsStore.Changed += ApplyPreferences;
         ApplyPreferences();
         timer.Tick += (_, _) => Sample();
         noticeTimer.Tick += (_, _) => { copiedIndicator = false; noticeKey = "Ready"; ApplyLabels(); noticeTimer.Stop(); };
         SourceInitialized += (_, _) => InitializeNative();
+        Loaded += (_, _) => FitWindowToWorkArea();
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.M && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+            { ToggleMiniMode(); e.Handled = true; }
+        };
         Closed += (_, _) => Cleanup();
     }
     private void InitializeNative()
@@ -104,7 +115,9 @@ public partial class MainWindow : Window
     {
         Language = Localization.LanguageTag;
         ApplyLabels(); RenderColor(); RenderHistory();
+        ApplyWindowMode();
         FreezeButton.SetResourceReference(BackgroundProperty, frozen ? "Selected" : "Surface");
+        MiniFreezeButton.SetResourceReference(BackgroundProperty, frozen ? "Selected" : "Surface");
     }
     private void ApplyLabels()
     {
@@ -115,6 +128,17 @@ public partial class MainWindow : Window
         System.Windows.Automation.AutomationProperties.SetName(HexText, Localization.Get("CurrentColor") + " " + FormatName);
         StatusText.Text = Localization.Get(statusKey); NoticeText.Text = Localization.Get(noticeKey);
         FormatLabel.Text = FormatName;
+        MiniFormatLabel.Text = FormatName;
+        MiniFreezeLabel.Text = Localization.Get(frozen ? "ResumeShort" : "PinShort");
+        MiniFreezeButton.ToolTip = FreezeLabel.Text + " · Ctrl + Shift + Space";
+        System.Windows.Automation.AutomationProperties.SetName(MiniFreezeButton, FreezeLabel.Text);
+        MiniCopyButton.ToolTip = (copiedIndicator ? Localization.Get("Copied") : Localization.Get("CopyFormat", FormatName)) + " · Ctrl + Shift + C";
+        System.Windows.Automation.AutomationProperties.SetName(MiniCopyButton, copiedIndicator ? Localization.Get("Copied") : Localization.Get("CopyFormat", FormatName));
+        System.Windows.Automation.AutomationProperties.SetName(MiniValueText, Localization.Get("CurrentColor") + " " + FormatName);
+        string modeAction = Localization.Get(SettingsStore.Current.MiniMode ? "ExitMiniMode" : "EnterMiniMode");
+        MiniModeButton.ToolTip = modeAction + " · Ctrl + Shift + M";
+        System.Windows.Automation.AutomationProperties.SetName(MiniModeButton, modeAction);
+        UpdateMiniStatus();
         FormatLabel.ToolTip = SettingsStore.Current.Format == ColorFormat.Cmyk ? Localization.Get("CmykHint") : null;
         UpdateCaptureInfo();
     }
@@ -122,11 +146,16 @@ public partial class MainWindow : Window
     {
         Swatch.Background = new SolidColorBrush(current); SwatchHex.Text = Hex;
         HexText.Text = ColorFormatting.Format(current, SettingsStore.Current.Format);
+        MiniValueText.Text = HexText.Text;
+        MiniValueText.ToolTip = HexText.Text;
+        MiniValueText.FontSize = SettingsStore.Current.Format == ColorFormat.Hex ? 20 : SettingsStore.Current.Format == ColorFormat.Cmyk ? 11 : 12;
+        MiniSwatch.Background = new SolidColorBrush(current);
         HexText.FontSize = SettingsStore.Current.Format switch { ColorFormat.Hex => 34, ColorFormat.Rgb => 20, ColorFormat.Cmyk => 13.5, _ => 15.5 };
         RedText.Text = $"R {current.R,3}"; GreenText.Text = $"G {current.G,3}"; BlueText.Text = $"B {current.B,3}";
         var textBrush = ColorFormatting.TextBrush(current);
         SwatchHex.Foreground = SwatchLabel.Foreground = textBrush;
         CopyButton.Background = new SolidColorBrush(current); CopyButton.Foreground = textBrush;
+        MiniCopyButton.Background = CopyButton.Background; MiniCopyButton.Foreground = textBrush;
         UpdateCaptureInfo();
     }
     private void UpdateCaptureInfo()
@@ -139,6 +168,8 @@ public partial class MainWindow : Window
     {
         statusKey = key; StatusText.Text = Localization.Get(key);
         StatusDot.Fill = (Brush)new BrushConverter().ConvertFromString(color)!;
+        MiniStatusDot.Fill = StatusDot.Fill;
+        UpdateMiniStatus();
     }
     private void ToggleFreeze()
     {
@@ -146,7 +177,10 @@ public partial class MainWindow : Window
         frozen = !frozen;
         PauseIcon.Visibility = frozen ? Visibility.Collapsed : Visibility.Visible;
         PlayIcon.Visibility = frozen ? Visibility.Visible : Visibility.Collapsed;
+        MiniPauseIcon.Visibility = PauseIcon.Visibility;
+        MiniPlayIcon.Visibility = PlayIcon.Visibility;
         FreezeButton.SetResourceReference(BackgroundProperty, frozen ? "Selected" : "Surface");
+        MiniFreezeButton.SetResourceReference(BackgroundProperty, frozen ? "Selected" : "Surface");
         SetStatus(frozen ? "Frozen" : "Live", frozen ? "#547CF0" : "#32AE7A"); ApplyLabels();
         if (!frozen) Sample();
     }
@@ -193,7 +227,50 @@ public partial class MainWindow : Window
         try { Directory.CreateDirectory(Path.GetDirectoryName(historyPath)!); File.WriteAllText(historyPath, JsonSerializer.Serialize(history)); return true; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
     }
-    private void Notice(string key) { noticeKey = key; NoticeText.Text = Localization.Get(key); noticeTimer.Stop(); noticeTimer.Start(); }
+    private void Notice(string key) { noticeKey = key; NoticeText.Text = Localization.Get(key); UpdateMiniStatus(); noticeTimer.Stop(); noticeTimer.Start(); }
+    private void UpdateMiniStatus()
+    {
+        MiniStatusText.Text = Localization.Get(noticeKey == "Ready" ? statusKey : noticeKey);
+        MiniStatusText.ToolTip = MiniStatusText.Text;
+    }
+    private void ApplyWindowMode()
+    {
+        bool requested = SettingsStore.Current.MiniMode;
+        StandardPanel.Visibility = BrandFooter.Visibility = requested ? Visibility.Collapsed : Visibility.Visible;
+        MiniPanel.Visibility = requested ? Visibility.Visible : Visibility.Collapsed;
+        MiniModeIcon.Data = Geometry.Parse(requested ? "M3,5 L21,5 L21,19 L3,19 Z M3,9 L21,9 M8,9 L8,19" : "M3,5 L21,5 L21,19 L3,19 Z M12,12 L18,12 L18,16 L12,16 Z");
+        if (miniMode == requested) return;
+        if (requested) standardSize = new Size(Width, Height);
+        miniMode = requested;
+        var size = requested ? PickerWindowLayout.MiniSize : standardSize;
+        MinWidth = requested ? PickerWindowLayout.MiniSize.Width : 440;
+        MinHeight = requested ? PickerWindowLayout.MiniSize.Height : Math.Min(480, CurrentWorkArea().Height);
+        Width = size.Width; Height = size.Height;
+        if (IsLoaded) FitWindowToWorkArea();
+    }
+    private Rect CurrentWorkArea()
+    {
+        var info = new Native.MonitorInfo { Size = System.Runtime.InteropServices.Marshal.SizeOf<Native.MonitorInfo>() };
+        if (hwnd != IntPtr.Zero && Native.GetMonitorInfo(Native.MonitorFromWindow(hwnd, 2), ref info) && source?.CompositionTarget is { } target)
+        {
+            var origin = target.TransformFromDevice.Transform(new Point(info.Work.Left, info.Work.Top));
+            var extent = target.TransformFromDevice.Transform(new Point(info.Work.Right, info.Work.Bottom));
+            return new Rect(origin, extent);
+        }
+        return SystemParameters.WorkArea;
+    }
+    internal Rect WorkArea => CurrentWorkArea();
+    private void FitWindowToWorkArea()
+    {
+        var bounds = PickerWindowLayout.Fit(new Rect(Left, Top, Width, Height), CurrentWorkArea());
+        MinWidth = Math.Min(MinWidth, bounds.Width); MinHeight = Math.Min(MinHeight, bounds.Height);
+        Width = bounds.Width; Height = bounds.Height; Left = bounds.Left; Top = bounds.Top;
+    }
+    private void ToggleMiniMode()
+    {
+        if (!SettingsStore.Update(SettingsStore.Current with { MiniMode = !SettingsStore.Current.MiniMode })) Notice("SettingsSaveFailed");
+    }
+    private void MiniMode_Click(object sender, RoutedEventArgs e) => ToggleMiniMode();
     public bool ClearRecentColors()
     {
         bool saved = LocalDataFiles.ClearHistory(historyPath, legacyHistoryPath);

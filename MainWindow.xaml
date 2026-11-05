@@ -6,6 +6,9 @@
     <Grid Margin="22,0,10,0">
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><Image Source="assets/app-icon.png" Width="20" Height="20" Margin="0,0,9,0"/><TextBlock Text="Pixel Pin" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/></StackPanel>
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+        <Button x:Name="MiniModeButton" Width="36" Padding="0" BorderThickness="0" Background="Transparent" Click="MiniMode_Click">
+          <Viewbox Width="17" Height="17"><Canvas Width="24" Height="24"><Path x:Name="MiniModeIcon" Stroke="{DynamicResource Ink}" StrokeThickness="1.5" StrokeLineJoin="Round" Data="M3,5 L21,5 L21,19 L3,19 Z M12,12 L18,12 L18,16 L12,16 Z"/></Canvas></Viewbox>
+        </Button>
         <Button Width="36" Padding="0" BorderThickness="0" Background="Transparent" Click="Settings_Click" ToolTip="{DynamicResource L.Settings}" AutomationProperties.Name="{DynamicResource L.Settings}">
           <Viewbox Width="17" Height="17"><Canvas Width="24" Height="24"><Path Stroke="{DynamicResource Ink}" StrokeThickness="1.5" StrokeLineJoin="Round" Data="M9,3 L15,3 L16,6 L19,7 L21,12 L19,17 L16,18 L15,21 L9,21 L8,18 L5,17 L3,12 L5,7 L8,6 Z"/><Ellipse Canvas.Left="8" Canvas.Top="8" Width="8" Height="8" Stroke="{DynamicResource Ink}" StrokeThickness="1.5"/></Canvas></Viewbox>
         </Button>
@@ -13,7 +16,7 @@
         <Button Content="✕" Width="36" Padding="0" BorderThickness="0" Background="Transparent" Click="Close_Click" ToolTip="{DynamicResource L.Close}" AutomationProperties.Name="{DynamicResource L.Close}"/>
       </StackPanel>
     </Grid>
-    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <ScrollViewer x:Name="StandardPanel" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Margin="26,15,26,20">
       <StackPanel Margin="0,0,0,18"><TextBlock Text="{DynamicResource L.Headline}" FontSize="23" FontWeight="SemiBold"/><TextBlock x:Name="InstructionText" Foreground="{DynamicResource Muted}" Margin="0,7,0,0" FontSize="11.5" TextWrapping="Wrap" MinHeight="30"/></StackPanel>
       <Border CornerRadius="16" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" Padding="16">
@@ -39,6 +42,27 @@
       <Grid><StackPanel><TextBlock Text="{DynamicResource L.CopyShortcut}" Foreground="{DynamicResource Muted}" FontSize="10"/><TextBlock Text="{DynamicResource L.PinShortcut}" Foreground="{DynamicResource Muted}" FontSize="10" Margin="0,5,0,0"/></StackPanel><TextBlock x:Name="NoticeText" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource Footer}"/></Grid>
     </StackPanel>
     </ScrollViewer>
-    <TextBlock Grid.Row="2" HorizontalAlignment="Center" FontSize="10" Margin="0,2,0,16"><Hyperlink NavigateUri="https://teamhjd.com/" RequestNavigate="TeamHjd_RequestNavigate" ToolTip="{DynamicResource L.OpenTeamHjd}" Foreground="{DynamicResource Footer}" TextDecorations="{x:Null}">Made by TeamHJD</Hyperlink></TextBlock>
+    <Grid x:Name="MiniPanel" Grid.Row="1" Visibility="Collapsed" Margin="16,6,16,14">
+      <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="12"/><RowDefinition Height="32"/></Grid.RowDefinitions>
+      <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
+        <Border x:Name="MiniSwatch" Height="48" Background="#547CF0" CornerRadius="10" AutomationProperties.Name="{DynamicResource L.CurrentColor}"/>
+        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+          <TextBlock x:Name="MiniFormatLabel" Foreground="{DynamicResource Muted}" FontSize="9" FontWeight="SemiBold" Margin="0,0,0,4"/>
+          <TextBox x:Name="MiniValueText" IsReadOnly="True" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource Ink}" CaretBrush="{DynamicResource Ink}" FontFamily="Consolas" FontSize="20" FontWeight="SemiBold" Padding="0" TextWrapping="Wrap" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled"/>
+        </StackPanel>
+        <Button x:Name="MiniCopyButton" Grid.Column="4" Height="36" Padding="0" Background="#547CF0" Foreground="White" BorderBrush="#30000000" Click="Copy_Click">
+          <Viewbox Width="16" Height="16"><Canvas Width="24" Height="24"><Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.7" StrokeLineJoin="Round" Data="M9,8 L20,8 L20,21 L9,21 Z M5,16 L3,16 L3,3 L14,3 L14,5"/></Canvas></Viewbox>
+        </Button>
+      </Grid>
+      <Grid Grid.Row="2">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0"><Ellipse x:Name="MiniStatusDot" Fill="#32AE7A" Width="6" Height="6" Margin="0,0,6,0"/><TextBlock x:Name="MiniStatusText" Foreground="{DynamicResource Muted}" FontSize="10" MaxWidth="172" TextTrimming="CharacterEllipsis"/></StackPanel>
+        <Button x:Name="MiniFreezeButton" Grid.Column="1" Padding="10,5" Click="Freeze_Click">
+          <StackPanel Orientation="Horizontal"><Grid Width="12" Height="12" Margin="0,0,6,0"><StackPanel x:Name="MiniPauseIcon" Orientation="Horizontal" HorizontalAlignment="Center"><Rectangle Width="3" Height="12" RadiusX="1.5" RadiusY="1.5" Fill="{DynamicResource Ink}"/><Rectangle Width="3" Height="12" RadiusX="1.5" RadiusY="1.5" Margin="3,0,0,0" Fill="{DynamicResource Ink}"/></StackPanel><Path x:Name="MiniPlayIcon" Visibility="Collapsed" Fill="{DynamicResource Ink}" Data="M2,1 Q2,0 3,0.6 L11,5 Q12.5,6 11,7 L3,11.4 Q2,12 2,11 Z"/></Grid><TextBlock x:Name="MiniFreezeLabel" FontSize="11" VerticalAlignment="Center"/></StackPanel>
+        </Button>
+      </Grid>
+    </Grid>
+    <TextBlock x:Name="BrandFooter" Grid.Row="2" HorizontalAlignment="Center" FontSize="10" Margin="0,2,0,16"><Hyperlink NavigateUri="https://teamhjd.com/" RequestNavigate="TeamHjd_RequestNavigate" ToolTip="{DynamicResource L.OpenTeamHjd}" Foreground="{DynamicResource Footer}" TextDecorations="{x:Null}">Made by TeamHJD</Hyperlink></TextBlock>
   </Grid>
 </Window>

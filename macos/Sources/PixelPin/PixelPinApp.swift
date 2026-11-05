@@ -15,7 +15,6 @@ struct PixelPinMacApp: App {
                 updatesEnabled: delegate.canCheckForUpdates,
                 onCheckForUpdates: delegate.checkForUpdates
             )
-                .frame(width: 410, height: 720)
                 .preferredColorScheme(model.theme.colorScheme)
                 .onAppear { delegate.keepWindowsFloating() }
         }
@@ -37,6 +36,8 @@ struct PixelPinMacApp: App {
                 .disabled(!delegate.canCheckForUpdates)
             }
             CommandMenu("Pixel Pin") {
+                Button(model.language.text(model.miniMode ? "기본 모드로 전환" : "미니 모드로 전환", model.miniMode ? "Return to Standard Mode" : "Switch to Mini Mode", model.miniMode ? "返回标准模式" : "切换为迷你模式")) { model.toggleMiniMode() }
+                    .keyboardShortcut("m", modifiers: [.command, .shift])
                 Button(model.language.text("색상 복사", "Copy color", "复制颜色")) { model.copy(model.color) }
                     .keyboardShortcut("c", modifiers: [.command, .shift])
                 Button(model.language.text("색상 고정 / 재개", "Pin / resume", "固定 / 继续取色")) { model.toggleFreeze() }
@@ -175,27 +176,32 @@ final class PickerModel: ObservableObject {
     @Published var frozen = false
     @Published var message = "Ready"
     @Published var settingsOpen = false
-    @Published var captureErrorDetail = ""
-    @Published var closeBehavior = WindowCloseBehavior(rawValue: UserDefaults.standard.string(forKey: "closeBehavior") ?? "minimize") ?? .minimize {
-        didSet { UserDefaults.standard.set(closeBehavior.rawValue, forKey: "closeBehavior") }
+    @Published var miniMode: Bool {
+        didSet { defaults.set(miniMode, forKey: "miniMode") }
     }
-    @Published var automaticCapture = UserDefaults.standard.object(forKey: "automaticCapture") as? Bool ?? true {
+    @Published var captureErrorDetail = ""
+    @Published var closeBehavior: WindowCloseBehavior {
+        didSet { defaults.set(closeBehavior.rawValue, forKey: "closeBehavior") }
+    }
+    @Published var automaticCapture: Bool {
         didSet {
-            UserDefaults.standard.set(automaticCapture, forKey: "automaticCapture")
+            defaults.set(automaticCapture, forKey: "automaticCapture")
             startCapture()
         }
     }
-    @Published var theme = AppTheme(rawValue: UserDefaults.standard.string(forKey: "theme") ?? "system") ?? .system {
-        didSet { UserDefaults.standard.set(theme.rawValue, forKey: "theme") }
+    @Published var theme: AppTheme {
+        didSet { defaults.set(theme.rawValue, forKey: "theme") }
     }
-    @Published var language = AppLanguage(rawValue: UserDefaults.standard.string(forKey: "language") ?? "한국어") ?? .korean {
-        didSet { UserDefaults.standard.set(language.rawValue, forKey: "language") }
+    @Published var language: AppLanguage {
+        didSet { defaults.set(language.rawValue, forKey: "language") }
     }
-    @Published var format = ColorFormat(rawValue: UserDefaults.standard.string(forKey: "format") ?? "HEX") ?? .hex {
-        didSet { UserDefaults.standard.set(format.rawValue, forKey: "format") }
+    @Published var format: ColorFormat {
+        didSet { defaults.set(format.rawValue, forKey: "format") }
     }
-    @Published var history = UserDefaults.standard.stringArray(forKey: "recentColors") ?? []
+    @Published var history: [String]
 
+    private let defaults: UserDefaults
+    private let captureEnabled: Bool
     private var timer: Timer?
     private var clickMonitor: Any?
     private var lastButtonDown = false
@@ -206,7 +212,17 @@ final class PickerModel: ObservableObject {
     private var awaitingCaptureSettings = false
     @Published var markerOffset = CGSize.zero
 
-    init() {
+    init(defaults: UserDefaults = .standard, startCapture: Bool = true) {
+        self.defaults = defaults
+        self.captureEnabled = startCapture
+        miniMode = defaults.bool(forKey: "miniMode")
+        closeBehavior = WindowCloseBehavior(rawValue: defaults.string(forKey: "closeBehavior") ?? "minimize") ?? .minimize
+        automaticCapture = defaults.object(forKey: "automaticCapture") as? Bool ?? true
+        theme = AppTheme(rawValue: defaults.string(forKey: "theme") ?? "system") ?? .system
+        language = AppLanguage(rawValue: defaults.string(forKey: "language") ?? "한국어") ?? .korean
+        format = ColorFormat(rawValue: defaults.string(forKey: "format") ?? "HEX") ?? .hex
+        history = defaults.stringArray(forKey: "recentColors") ?? []
+        guard startCapture else { return }
         clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
             Task { @MainActor in
                 guard let self else { return }
@@ -248,6 +264,11 @@ final class PickerModel: ObservableObject {
         if !frozen { sample() }
     }
 
+    func toggleMiniMode() {
+        settingsOpen = false
+        miniMode.toggle()
+    }
+
     func selectScreen() {
         frozen = false
         isSelectingScreen = true
@@ -257,6 +278,7 @@ final class PickerModel: ObservableObject {
     }
 
     func startCapture(requestPermission: Bool = false) {
+        guard captureEnabled else { return }
         frozen = false
         isSelectingScreen = true
         latestRaster = nil
@@ -305,8 +327,13 @@ final class PickerModel: ObservableObject {
         history.removeAll { $0 == value.hex }
         history.insert(value.hex, at: 0)
         history = Array(history.prefix(8))
-        UserDefaults.standard.set(history, forKey: "recentColors")
+        defaults.set(history, forKey: "recentColors")
         message = "copied"
+    }
+
+    func clearHistory() {
+        history = []
+        defaults.removeObject(forKey: "recentColors")
     }
 
     var paletteColors: Palette { Palette(theme: theme) }
@@ -331,9 +358,19 @@ struct PickerView: View {
     @State private var copied = false
     private var p: Palette { Palette(theme: model.theme, systemDark: systemColorScheme == .dark) }
     private var language: AppLanguage { model.language }
+    private var windowLayout: PickerWindowLayout {
+        PickerWindowLayout(miniMode: model.miniMode, settingsOpen: model.settingsOpen,
+                           workArea: NSScreen.main?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900))
+    }
+    private var modeAction: String {
+        model.miniMode ? language.text("기본 모드로 전환", "Return to standard mode", "返回标准模式") : language.text("미니 모드로 전환", "Switch to mini mode", "切换为迷你模式")
+    }
 
     var body: some View {
         VStack(spacing: 0) {
+            if windowLayout.isMini {
+                miniContent
+            } else {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     if !AppInstallation.isInstalled() {
@@ -448,13 +485,24 @@ struct PickerView: View {
                 }.padding(20)
             }
             footer
+            }
         }
+        .frame(width: windowLayout.contentSize.width, height: windowLayout.contentSize.height)
         .background(p.background)
+        .background(PickerWindowLayoutConfigurator(layout: windowLayout))
         .background(WindowChromeConfigurator(color: p.background))
         .background(WindowCloseBehaviorHandler(behavior: model.closeBehavior))
         .toolbarBackground(p.background, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { model.toggleMiniMode() } label: {
+                    Image(systemName: model.miniMode ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
+                }
+                .disabled(model.settingsOpen)
+                .help(modeAction + " · ⇧⌘M")
+                .accessibilityLabel(modeAction)
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button { model.settingsOpen.toggle() } label: {
                     Image(systemName: "gearshape")
@@ -482,6 +530,42 @@ struct PickerView: View {
             .font(.system(size: 10)).foregroundStyle(p.muted).padding(.vertical, 12)
     }
 
+    private var miniContent: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 10).fill(model.color.swiftUIColor).frame(width: 48, height: 48)
+                    .accessibilityLabel(language.text("현재 색상", "Current color", "当前颜色") + " " + model.color.hex)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(model.format.rawValue).font(.system(size: 9, weight: .semibold)).foregroundStyle(p.muted)
+                    Text(model.color.formatted(model.format))
+                        .font(.system(size: model.format == .hex ? 19 : 11, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(p.ink).lineLimit(2).minimumScaleFactor(0.8).textSelection(.enabled)
+                        .help(model.color.formatted(model.format))
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                Button {
+                    model.copy(model.color)
+                } label: {
+                    Image(systemName: "doc.on.doc").font(.system(size: 14, weight: .medium))
+                        .frame(width: 34, height: 34).foregroundStyle(model.color.foreground)
+                        .background(model.color.swiftUIColor, in: RoundedRectangle(cornerRadius: 9))
+                }.buttonStyle(.plain)
+                    .help(language.text("\(model.format.rawValue) 복사", "Copy \(model.format.rawValue)", "复制 \(model.format.rawValue)") + " · ⇧⌘C")
+                    .accessibilityLabel(language.text("\(model.format.rawValue) 복사", "Copy \(model.format.rawValue)", "复制 \(model.format.rawValue)"))
+            }
+            HStack(spacing: 8) {
+                Label(statusText, systemImage: model.frozen ? "pause.circle.fill" : "circle.fill")
+                    .font(.system(size: 10)).foregroundStyle(p.muted).lineLimit(1).truncationMode(.tail).help(statusText)
+                Spacer(minLength: 0)
+                Button { model.toggleFreeze() } label: {
+                    Label(model.frozen ? language.text("재개", "Resume", "继续") : language.text("고정", "Pin", "固定"), systemImage: model.frozen ? "play.fill" : "pause.fill")
+                        .font(.system(size: 11, weight: .medium)).padding(.horizontal, 10).padding(.vertical, 7)
+                        .foregroundStyle(p.ink).background(p.tint, in: RoundedRectangle(cornerRadius: 9))
+                }.buttonStyle(.plain)
+                    .help(language.text("색상 고정 / 재개", "Pin / resume", "固定 / 继续取色") + " · ⇧⌘Space")
+            }
+        }.padding(14)
+    }
+
     private var settingsPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -499,6 +583,12 @@ struct PickerView: View {
             }
             settingRow(language.text("색상 포맷", "Color format", "颜色格式")) {
                 Picker("", selection: $model.format) { ForEach(ColorFormat.allCases) { Text($0.rawValue).tag($0) } }.labelsHidden().pickerStyle(.menu)
+            }
+            Toggle(language.text("미니 모드", "Mini mode", "迷你模式"), isOn: $model.miniMode)
+                .font(.system(size: 11)).foregroundStyle(p.ink).toggleStyle(.switch)
+            if model.miniMode {
+                Text(language.text("설정을 닫으면 작은 창으로 돌아갑니다.", "Close settings to return to the mini window.", "关闭设置后将返回迷你窗口。"))
+                    .font(.system(size: 9)).foregroundStyle(p.muted)
             }
             settingRow(language.text("닫기 버튼 동작", "Close button", "关闭按钮")) {
                 Picker("", selection: $model.closeBehavior) {
@@ -524,12 +614,11 @@ struct PickerView: View {
             }
             HStack(spacing: 8) {
                 Button(language.text("최근 색상 지우기", "Clear recent colors", "清除最近颜色")) {
-                    model.history = []
-                    UserDefaults.standard.removeObject(forKey: "recentColors")
+                    model.clearHistory()
                 }.buttonStyle(.plain)
                 Spacer(minLength: 0)
                 Button(language.text("기본값 복원", "Restore defaults", "恢复默认设置")) {
-                    model.theme = .system; model.language = .korean; model.format = .hex; model.closeBehavior = .minimize; model.automaticCapture = true
+                    model.theme = .system; model.language = .korean; model.format = .hex; model.miniMode = false; model.closeBehavior = .minimize; model.automaticCapture = true
                 }.buttonStyle(.plain)
             }.font(.system(size: 9, weight: .medium)).foregroundStyle(Color.accentColor)
         }.padding(14).frame(width: 300, alignment: .leading).background(p.surface, in: RoundedRectangle(cornerRadius: 14))

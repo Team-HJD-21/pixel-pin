@@ -14,6 +14,7 @@ public sealed record AppSettings
     public ThemeMode Theme { get; init; } = ThemeMode.System;
     public UiLanguage Language { get; init; } = UiLanguage.Korean;
     public ColorFormat Format { get; init; } = ColorFormat.Hex;
+    public bool MiniMode { get; init; }
 }
 
 public static class SettingsStore

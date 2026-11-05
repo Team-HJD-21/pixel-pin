@@ -8,7 +8,7 @@
 
 [使用条款](https://pixelpin.teamhjd.com/zh-CN/terms/) · [隐私政策](https://pixelpin.teamhjd.com/zh-CN/privacy/) · [支持开发与付款说明](https://pixelpin.teamhjd.com/zh-CN/support/)
 
-更新版本在设置中新增**清除最近颜色**和**恢复默认设置**。清除颜色会删除当前及旧版记录；恢复默认设置仅重置外观、语言和格式，不会清除 Windows 剪贴板。v1.1.0 用户如需删除记录，请先退出应用，再手动删除 `%LOCALAPPDATA%\PixelPin` 中的文件及可能存在的 `%LOCALAPPDATA%\DigitalColorMeter\history.json`。
+更新版本在设置中新增**清除最近颜色**和**恢复默认设置**。清除颜色会删除当前及旧版记录；恢复默认设置会重置外观、语言、格式和窗口模式，不会清除 Windows 剪贴板。v1.1.0 用户如需删除记录，请先退出应用，再手动删除 `%LOCALAPPDATA%\PixelPin` 中的文件及可能存在的 `%LOCALAPPDATA%\DigitalColorMeter\history.json`。
 
 应用免费提供。目前正在考虑通过 Lemon Squeezy 提供可选付费项目，尚未开放付款。商品、销售主体、隐私处理及退款条件确认后，会先行说明。
 
@@ -54,6 +54,7 @@
 | :--- | :--- |
 | `Ctrl + Shift + C` | 复制当前颜色 |
 | `Ctrl + Shift + Space` | 固定颜色或继续取色 |
+| `Ctrl + Shift + M` | 在应用获得焦点时切换标准模式与迷你模式 |
 
 点击应用内部按钮、设置窗口或下拉选项不会切换取色状态。最近颜色也会按当前选择的格式复制。若快捷键与其他程序冲突，可使用应用内按钮。
 
@@ -66,6 +67,7 @@
 - **外观模式：** 跟随系统 / 浅色模式 / 深色模式
 - **语言：** 한국어 / English / 简体中文
 - **颜色格式：** HEX / RGB / HSL / HSV / CMYK
+- **窗口模式：** 标准 / 迷你。也可点击标题栏中的窗口模式按钮切换；应用会记住上次使用的模式。macOS 使用 `Command + Shift + M`，打开设置时会暂时展开窗口，关闭设置后回到迷你模式。
 
 <div align="center"><img src="../assets/settings-dark-zh.png" width="300" alt="简体中文设置窗口" /></div>
 
