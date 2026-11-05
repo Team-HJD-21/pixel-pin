@@ -25,11 +25,14 @@ security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
 security set-keychain-settings -lut 3600 "$KEYCHAIN"
 security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
 security import "$IDENTITY_DIR/identity.p12" -k "$KEYCHAIN" -P "$MACOS_EPHEMERAL_P12_PASSWORD" -T /usr/bin/codesign
+echo 'Imported identity; configuring non-interactive key access.'
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
-# Only this ephemeral CI user trusts the certificate for applying signatures.
+echo 'Configuring temporary code-signing trust on the disposable CI runner.'
+# Only this disposable CI runner trusts the certificate for applying signatures.
 # The app's requirement pins the leaf certificate, not the user's trust store.
-security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$IDENTITY_DIR/certificate.pem"
+sudo -n security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$IDENTITY_DIR/certificate.pem"
 FINGERPRINT="$("$OPENSSL" x509 -in "$IDENTITY_DIR/certificate.pem" -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')"
+echo 'Validating the imported signing identity.'
 security find-identity -v -p codesigning "$KEYCHAIN" | grep -qi "$FINGERPRINT"
 {
   echo "MACOS_TEST_KEYCHAIN=$KEYCHAIN"

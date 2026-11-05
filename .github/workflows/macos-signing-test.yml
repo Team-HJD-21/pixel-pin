@@ -26,6 +26,7 @@ jobs:
           for script in macos/signing-test/*.sh; do bash -n "$script"; done
           python3 -m pip install --disable-pip-version-check --require-hashes -r macos/installer/requirements.txt
       - name: Create one ephemeral certificate shared by both test versions
+        timeout-minutes: 2
         run: bash macos/signing-test/create-identity.sh
       - name: Authenticate source and verify both versions have compatible identities
         run: bash macos/signing-test/prepare-pair.sh
@@ -72,7 +73,13 @@ jobs:
             --title 'Pixel Pin isolated signing test feed' --notes-file "$notes"
       - name: Remove the test keychain and temporary certificate files
         if: always()
+        timeout-minutes: 1
         run: |
-          security remove-trusted-cert "$RUNNER_TEMP/pixelpin-test-identity/certificate.pem" > /dev/null 2>&1 || true
+          cert="$RUNNER_TEMP/pixelpin-test-identity/certificate.pem"
+          if [[ -f "$cert" ]]; then
+            fingerprint="$(openssl x509 -in "$cert" -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')"
+            sudo -n security remove-trusted-cert -d "$cert" > /dev/null 2>&1 || true
+            sudo -n security delete-certificate -Z "$fingerprint" /Library/Keychains/System.keychain > /dev/null 2>&1 || true
+          fi
           security delete-keychain "$RUNNER_TEMP/pixelpin-signing-test.keychain-db" > /dev/null 2>&1 || true
           rm -f "$RUNNER_TEMP/pixelpin-test-identity/key.pem" "$RUNNER_TEMP/pixelpin-test-identity/identity.p12" "$RUNNER_TEMP/pixelpin-test-identity/certificate.pem"
